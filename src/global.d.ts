@@ -35,11 +35,23 @@ declare const require: ((id: string) => any) & { main?: { exports: unknown } };
 declare const module: { exports: unknown; main?: unknown };
 
 declare module 'node:fs' {
+  export interface Stats {
+    mtimeMs: number;
+    size: number;
+  }
   export function readFileSync(p: string): ByteBuf;
   export function writeFileSync(p: string, data: string | ByteBuf): void;
   export function mkdirSync(p: string, opts?: { recursive?: boolean }): string | undefined;
   export function existsSync(p: string): boolean;
   export function mkdtempSync(prefix: string): string;
+  export function statSync(p: string): Stats;
+  export function utimesSync(p: string, atime: Date, mtime: Date): void;
+}
+
+declare module 'node:crypto' {
+  export function createHash(algorithm: string): {
+    update(data: string): { digest(encoding: string): string };
+  };
 }
 
 declare module 'node:path' {

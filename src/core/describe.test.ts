@@ -1,10 +1,19 @@
-import { test } from 'node:test';
+import { before, after, test } from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { describe } from './describe';
 import { DEFAULT_CONFIG } from '../config/config';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+
+// describe 默认开启本地缓存，把 PERISCOPE_CACHE_DIR 指向临时目录，
+// 避免本文件的网络路径测试把缓存条目写进真实 ~/.cache/periscope。
+before(() => {
+  process.env.PERISCOPE_CACHE_DIR = makeTempDir('periscope-cache-test-');
+});
+after(() => {
+  delete process.env.PERISCOPE_CACHE_DIR;
+});
 
 test('describe 通过 mock 端点发送 openai 协议请求并提取文本', async (t) => {
   const server = await createMockServer({
