@@ -10,7 +10,7 @@
   "main": "dist/core/describe.js",
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node --test \"dist/**/*.test.js\""
+    "test": "tsc && node --test"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

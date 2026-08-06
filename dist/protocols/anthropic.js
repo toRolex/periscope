@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.anthropicAdapter = exports.ANTHROPIC_VERSION = void 0;
 exports.dataUrlToImageSource = dataUrlToImageSource;
+const types_1 = require("./types");
 exports.ANTHROPIC_VERSION = '2023-06-01';
-const DEFAULT_IMAGE_PROMPT = '描述这张图片';
 /** 解析 data URL（data:image/<mime>;base64,<data>）为 anthropic image source 需要的 media_type 与 base64 data。 */
 function dataUrlToImageSource(dataUrl) {
     const comma = dataUrl.indexOf(',');
@@ -54,7 +54,7 @@ exports.anthropicAdapter = {
                     {
                         role: 'user',
                         content: [
-                            { type: 'text', text: input.intent ?? DEFAULT_IMAGE_PROMPT },
+                            { type: 'text', text: input.intent ?? types_1.DEFAULT_IMAGE_PROMPT },
                             { type: 'image', source },
                         ],
                     },

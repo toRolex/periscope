@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Protocol } from '../protocols/types';
 
 export interface ProtocolEndpointConfig {
   baseUrl: string;
@@ -9,11 +10,11 @@ export interface ProtocolEndpointConfig {
 
 /**
  * 配置文件结构。protocol 指定当前激活的协议；
- * openai / anthropic / responses 是各协议的 baseUrl 与 model（本期只实现 openai，
- * 后两者作为扩展位保留在默认配置中）。
+ * openai / anthropic / responses 是各协议的 baseUrl 与 model（三协议均已实现，
+ * 与 src/protocols 下的适配器一一对应）。
  */
 export interface PeriscopeConfig {
-  protocol: string;
+  protocol: Protocol;
   apiKey: string;
   openai: ProtocolEndpointConfig;
   anthropic: ProtocolEndpointConfig;

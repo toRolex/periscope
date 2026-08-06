@@ -1,8 +1,6 @@
-import { BuildRequestInput, BuiltRequest, ProtocolAdapter } from './types';
+import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
 
 export const ANTHROPIC_VERSION = '2023-06-01';
-
-const DEFAULT_IMAGE_PROMPT = '描述这张图片';
 
 /** 解析 data URL（data:image/<mime>;base64,<data>）为 anthropic image source 需要的 media_type 与 base64 data。 */
 export function dataUrlToImageSource(

@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.openaiAdapter = exports.DEFAULT_IMAGE_PROMPT = void 0;
-exports.DEFAULT_IMAGE_PROMPT = '描述这张图片';
+exports.openaiAdapter = void 0;
+const types_1 = require("./types");
 /**
- * openai 协议（chat/completions）。本期唯一实现。
+ * openai 协议（chat/completions）。与 anthropic / responses 并列的三协议实现之一。
  * 响应提取遵循「容错透传」：非 JSON / 缺 content 时返回原始响应文本。
  */
 exports.openaiAdapter = {
@@ -22,7 +22,7 @@ exports.openaiAdapter = {
                     {
                         role: 'user',
                         content: [
-                            { type: 'text', text: input.intent ?? exports.DEFAULT_IMAGE_PROMPT },
+                            { type: 'text', text: input.intent ?? types_1.DEFAULT_IMAGE_PROMPT },
                             { type: 'image_url', image_url: { url: input.imageDataUrl } },
                         ],
                     },

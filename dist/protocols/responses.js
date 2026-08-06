@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.responsesAdapter = void 0;
-const DEFAULT_IMAGE_PROMPT = '描述这张图片';
+const types_1 = require("./types");
 /**
  * openai responses 协议（v1/responses）。本期新增实现。
  * 图片走 input[].content[] 的 input_image 块（image_url 直接携带 data URL）。
@@ -23,7 +23,7 @@ exports.responsesAdapter = {
                     {
                         role: 'user',
                         content: [
-                            { type: 'input_text', text: input.intent ?? DEFAULT_IMAGE_PROMPT },
+                            { type: 'input_text', text: input.intent ?? types_1.DEFAULT_IMAGE_PROMPT },
                             { type: 'input_image', image_url: input.imageDataUrl },
                         ],
                     },

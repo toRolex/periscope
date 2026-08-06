@@ -48,7 +48,7 @@ function sourceToImageUrl(source: string): string {
 }
 
 function endpointFor(config: PeriscopeConfig): { baseUrl: string; model: string } {
-  const endpoint = (config as any)[config.protocol];
+  const endpoint = config[config.protocol];
   if (!endpoint || typeof endpoint !== 'object') {
     throw new Error(`配置缺少协议 ${config.protocol} 的 baseUrl/model`);
   }

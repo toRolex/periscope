@@ -212,7 +212,7 @@ Node.js >= 20（代码与测试使用内建 `fetch` 与 `node:test`）。
 
 - 依赖极简：devDependencies 仅 `typescript`（`@types/node` 不引入，手写 ambient 声明在 `src/global.d.ts`）。
 - 构建：`pnpm build`（=`tsc`）。
-- 测试：`pnpm test`（=`tsc && node --test "dist/**/*.test.js"`），含 CLI、core、三协议、config、缓存、hook、插件契约，以及 `src/delivery.smoke.test.ts` 的 mock 端点端到端冒烟。
+- 测试：`pnpm test`（=`tsc && node --test`），含 CLI、core、三协议、config、缓存、hook、插件契约，以及 `src/delivery.smoke.test.ts` 的 mock 端点端到端冒烟。
 - 本地 mock 视觉端点：`src/testing/mock-server.ts`（离线 HTTP server，记录请求、返回可定制的视觉响应），`src/testing/fixtures.ts`（1x1 PNG 与临时配置/目录工具）。
 - 目录速览：
   - `src/cli/index.ts` — CLI 入口（解析参数 → describe → 输出/退出码）
