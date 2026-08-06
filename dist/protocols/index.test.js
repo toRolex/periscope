@@ -39,7 +39,12 @@ const index_1 = require("./index");
 (0, node_test_1.test)('getProtocol 返回 openai 适配器', () => {
     assert.equal((0, index_1.getProtocol)('openai').name, 'openai');
 });
-(0, node_test_1.test)('getProtocol 对未实现的协议抛错（为 anthropic/responses 留扩展位）', () => {
-    assert.throws(() => (0, index_1.getProtocol)('anthropic'), /未知协议/);
-    assert.throws(() => (0, index_1.getProtocol)('responses'), /未知协议/);
+(0, node_test_1.test)('getProtocol 返回 anthropic 适配器', () => {
+    assert.equal((0, index_1.getProtocol)('anthropic').name, 'anthropic');
+});
+(0, node_test_1.test)('getProtocol 返回 responses 适配器', () => {
+    assert.equal((0, index_1.getProtocol)('responses').name, 'responses');
+});
+(0, node_test_1.test)('getProtocol 对未知协议抛错', () => {
+    assert.throws(() => (0, index_1.getProtocol)('unknown'), /未知协议/);
 });
