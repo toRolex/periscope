@@ -28,3 +28,56 @@ export function writeConfigFile(
   fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
   return { path: filePath, config };
 }
+
+/** 临时设置/删除若干环境变量，测试结束自动还原。 */
+export function withEnv(
+  env: Record<string, string | undefined>,
+  fn: () => void,
+): void {
+  const saved = new Map<string, string | undefined>();
+  for (const key of Object.keys(env)) {
+    saved.set(key, process.env[key]);
+    if (env[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = env[key];
+    }
+  }
+  try {
+    fn();
+  } finally {
+    for (const [key, value] of saved) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
+export interface MakeTestEnvOptions {
+  /** 设置 PERISCOPE_API_KEY。 */
+  apiKey: string;
+  /** makeTempDir 前缀，隔离各测试的真实 HOME。 */
+  homePrefix: string;
+  /** 提供时设置 PERISCOPE_CACHE_DIR（隔离缓存目录）；省略时不设置。 */
+  cacheDir?: string;
+}
+
+/** 构造隔离的测试环境：继承 process.env，覆盖 PERISCOPE_CONFIG/API_KEY/HOME（及可选 CACHE_DIR）。 */
+export function makeTestEnv(
+  configPath: string,
+  options: MakeTestEnvOptions,
+): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    PERISCOPE_CONFIG: configPath,
+    PERISCOPE_API_KEY: options.apiKey,
+    HOME: makeTempDir(options.homePrefix),
+  };
+  if (options.cacheDir !== undefined) {
+    env.PERISCOPE_CACHE_DIR = options.cacheDir;
+  }
+  return env;
+}

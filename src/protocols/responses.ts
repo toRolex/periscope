@@ -1,4 +1,5 @@
 import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
+import { tryParseJson } from './parse';
 
 /**
  * openai responses 协议（v1/responses）。本期新增实现。
@@ -32,12 +33,8 @@ export const responsesAdapter: ProtocolAdapter = {
   },
 
   extractText(responseText: string): string {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(responseText);
-    } catch {
-      return responseText; // 非 JSON → 透传原始文本
-    }
+    const parsed = tryParseJson(responseText);
+    if (parsed === null) return responseText; // 非 JSON → 透传原始文本
     const output = (parsed as any)?.output;
     if (!Array.isArray(output)) return responseText; // 缺 output → 透传原始文本
     const parts: string[] = [];

@@ -1,4 +1,5 @@
 import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
+import { tryParseJson } from './parse';
 
 export const ANTHROPIC_VERSION = '2023-06-01';
 
@@ -70,12 +71,8 @@ export const anthropicAdapter: ProtocolAdapter = {
   },
 
   extractText(responseText: string): string {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(responseText);
-    } catch {
-      return responseText; // 非 JSON → 透传原始文本
-    }
+    const parsed = tryParseJson(responseText);
+    if (parsed === null) return responseText; // 非 JSON → 透传原始文本
     const content = (parsed as any)?.content;
     if (!Array.isArray(content)) return responseText; // 缺 content → 透传原始文本
     const parts = content

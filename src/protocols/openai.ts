@@ -1,4 +1,5 @@
 import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
+import { tryParseJson } from './parse';
 
 /**
  * openai 协议（chat/completions）。与 anthropic / responses 并列的三协议实现之一。
@@ -31,12 +32,8 @@ export const openaiAdapter: ProtocolAdapter = {
   },
 
   extractText(responseText: string): string {
-    let data: unknown;
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      return responseText; // 非 JSON → 透传原始文本
-    }
+    const data = tryParseJson(responseText);
+    if (data === null) return responseText; // 非 JSON → 透传原始文本
     const content = (data as any)?.choices?.[0]?.message?.content;
     if (typeof content === 'string') return content;
     if (Array.isArray(content)) {

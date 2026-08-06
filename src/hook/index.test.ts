@@ -1,48 +1,21 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { spawn } from 'node:child_process';
 import { buildImageContext, describeImageEntries, handleHookInput } from './index';
 import { DEFAULT_CONFIG } from '../config/config';
 import { HttpTransport } from '../transport';
 import { createMockServer } from '../testing/mock-server';
-import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+import { runHook } from '../testing/hook';
 
 /** 编译后 hook 入口与 CLI 同模式：位于 dist/hook/index.js。 */
 const HOOK_ENTRY = path.join(__dirname, 'index.js');
 
 function hookEnv(configPath: string, cacheDir?: string): Record<string, string | undefined> {
-  return {
-    ...process.env,
-    PERISCOPE_CONFIG: configPath,
-    PERISCOPE_API_KEY: 'sk-hook',
-    // 隔离真实 HOME 与缓存目录，避免 hook 污染用户目录
-    HOME: makeTempDir('periscope-hook-home-'),
-    PERISCOPE_CACHE_DIR: cacheDir ?? makeTempDir('periscope-hook-cache-'),
-  };
-}
-
-/** spawn 编译后 hook，写入 stdin JSON，返回 stdout/stderr/退出码。 */
-function runHook(
-  stdin: string,
-  env: Record<string, string | undefined>,
-): Promise<{ stdout: string; stderr: string; code: number }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [HOOK_ENTRY], { env });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk: { toString(): string }) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on('data', (chunk: { toString(): string }) => {
-      stderr += chunk.toString();
-    });
-    child.on('error', reject);
-    child.on('close', (code: number | null) => {
-      resolve({ stdout, stderr, code: code ?? -1 });
-    });
-    child.stdin.write(stdin);
-    child.stdin.end();
+  return makeTestEnv(configPath, {
+    apiKey: 'sk-hook',
+    homePrefix: 'periscope-hook-home-',
+    cacheDir: cacheDir ?? makeTempDir('periscope-hook-cache-'),
   });
 }
 
@@ -176,7 +149,7 @@ test('hook stdin fixture：含 image_paths 的事件注入 additionalContext', a
     image_count: 2,
     image_paths: [img1, img2],
   });
-  const { stdout, stderr, code } = await runHook(stdin, hookEnv(configPath));
+  const { stdout, stderr, code } = await runHook(HOOK_ENTRY, stdin, hookEnv(configPath));
   const parsed = JSON.parse(stdout) as any;
 
   assert.equal(code, 0);
@@ -204,7 +177,7 @@ test('hook 失败 fixture：单图描述失败注入占位符且仍放行', asyn
     image_count: 2,
     image_paths: [img1, path.join(dir, 'missing.png')],
   });
-  const { stdout, code } = await runHook(stdin, hookEnv(configPath));
+  const { stdout, code } = await runHook(HOOK_ENTRY, stdin, hookEnv(configPath));
   const parsed = JSON.parse(stdout) as any;
 
   assert.equal(code, 0);
@@ -237,8 +210,8 @@ test('hook 复用缓存：同一图两次 hook 只发一次视觉请求', async 
     image_paths: [img],
   });
 
-  const first = await runHook(stdin, env);
-  const second = await runHook(stdin, env);
+  const first = await runHook(HOOK_ENTRY, stdin, env);
+  const second = await runHook(HOOK_ENTRY, stdin, env);
 
   assert.match((JSON.parse(first.stdout) as any).hookSpecificOutput.additionalContext, /缓存描述/);
   assert.match((JSON.parse(second.stdout) as any).hookSpecificOutput.additionalContext, /缓存描述/);

@@ -41,38 +41,16 @@ const node_util_1 = require("node:util");
 const config_1 = require("./config/config");
 const mock_server_1 = require("./testing/mock-server");
 const fixtures_1 = require("./testing/fixtures");
+const hook_1 = require("./testing/hook");
 const execFileP = (0, node_util_1.promisify)(node_child_process_1.execFile);
 /** 编译后测试位于 dist/，CLI 与 hook 入口即同目录产物。 */
 const CLI_ENTRY = path.join(__dirname, 'cli', 'index.js');
 const HOOK_ENTRY = path.join(__dirname, 'hook', 'index.js');
 function smokeEnv(configPath) {
-    return {
-        ...process.env,
-        PERISCOPE_CONFIG: configPath,
-        PERISCOPE_API_KEY: 'sk-smoke',
-        // 隔离真实 HOME 与缓存，避免 smoke 污染用户目录
-        HOME: (0, fixtures_1.makeTempDir)('periscope-smoke-home-'),
-        PERISCOPE_CACHE_DIR: (0, fixtures_1.makeTempDir)('periscope-smoke-cache-'),
-    };
-}
-/** spawn 编译后 hook，写入 stdin JSON，返回 stdout/stderr/退出码。 */
-function runHook(stdin, env) {
-    return new Promise((resolve, reject) => {
-        const child = (0, node_child_process_1.spawn)(process.execPath, [HOOK_ENTRY], { env });
-        let stdout = '';
-        let stderr = '';
-        child.stdout.on('data', (chunk) => {
-            stdout += chunk.toString();
-        });
-        child.stderr.on('data', (chunk) => {
-            stderr += chunk.toString();
-        });
-        child.on('error', reject);
-        child.on('close', (code) => {
-            resolve({ stdout, stderr, code: code ?? -1 });
-        });
-        child.stdin.write(stdin);
-        child.stdin.end();
+    return (0, fixtures_1.makeTestEnv)(configPath, {
+        apiKey: 'sk-smoke',
+        homePrefix: 'periscope-smoke-home-',
+        cacheDir: (0, fixtures_1.makeTempDir)('periscope-smoke-cache-'),
     });
 }
 (0, node_test_1.test)('smoke: README 描述的 CLI 单图用法端到端可运行（mock 端点）', async (t) => {
@@ -138,7 +116,7 @@ function runHook(stdin, env) {
         image_count: 2,
         image_paths: [img1, img2],
     });
-    const { stdout, stderr, code } = await runHook(stdin, smokeEnv(configPath));
+    const { stdout, stderr, code } = await (0, hook_1.runHook)(HOOK_ENTRY, stdin, smokeEnv(configPath));
     const parsed = JSON.parse(stdout);
     assert.equal(code, 0);
     assert.equal(stderr, '');
@@ -157,7 +135,7 @@ function runHook(stdin, env) {
         prompt: '无图',
         image_paths: [],
     });
-    const { stdout, code } = await runHook(stdin, smokeEnv(configPath));
+    const { stdout, code } = await (0, hook_1.runHook)(HOOK_ENTRY, stdin, smokeEnv(configPath));
     const parsed = JSON.parse(stdout);
     assert.equal(code, 0);
     assert.equal(parsed.decision, 'approve');

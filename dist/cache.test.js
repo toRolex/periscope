@@ -39,39 +39,13 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const cache_1 = require("./cache");
 const fixtures_1 = require("./testing/fixtures");
-/** 临时设置/删除若干环境变量，测试结束自动还原。 */
-function withEnv(env, fn) {
-    const saved = new Map();
-    for (const key of Object.keys(env)) {
-        saved.set(key, process.env[key]);
-        if (env[key] === undefined) {
-            delete process.env[key];
-        }
-        else {
-            process.env[key] = env[key];
-        }
-    }
-    try {
-        fn();
-    }
-    finally {
-        for (const [key, value] of saved) {
-            if (value === undefined) {
-                delete process.env[key];
-            }
-            else {
-                process.env[key] = value;
-            }
-        }
-    }
-}
 (0, node_test_1.test)('defaultCacheDir 默认 HOME/.cache/periscope，且可被 PERISCOPE_CACHE_DIR 覆盖', () => {
     const dir = (0, fixtures_1.makeTempDir)();
-    withEnv({ PERISCOPE_CACHE_DIR: undefined, HOME: dir }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CACHE_DIR: undefined, HOME: dir }, () => {
         assert.equal((0, cache_1.defaultCacheDir)(), path.join(dir, '.cache', 'periscope'));
     });
     const overridePath = path.join(dir, 'custom-cache');
-    withEnv({ PERISCOPE_CACHE_DIR: overridePath }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CACHE_DIR: overridePath }, () => {
         assert.equal((0, cache_1.defaultCacheDir)(), overridePath);
     });
 });

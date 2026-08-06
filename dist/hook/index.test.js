@@ -36,41 +36,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const path = __importStar(require("node:path"));
-const node_child_process_1 = require("node:child_process");
 const index_1 = require("./index");
 const config_1 = require("../config/config");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
+const hook_1 = require("../testing/hook");
 /** 编译后 hook 入口与 CLI 同模式：位于 dist/hook/index.js。 */
 const HOOK_ENTRY = path.join(__dirname, 'index.js');
 function hookEnv(configPath, cacheDir) {
-    return {
-        ...process.env,
-        PERISCOPE_CONFIG: configPath,
-        PERISCOPE_API_KEY: 'sk-hook',
-        // 隔离真实 HOME 与缓存目录，避免 hook 污染用户目录
-        HOME: (0, fixtures_1.makeTempDir)('periscope-hook-home-'),
-        PERISCOPE_CACHE_DIR: cacheDir ?? (0, fixtures_1.makeTempDir)('periscope-hook-cache-'),
-    };
-}
-/** spawn 编译后 hook，写入 stdin JSON，返回 stdout/stderr/退出码。 */
-function runHook(stdin, env) {
-    return new Promise((resolve, reject) => {
-        const child = (0, node_child_process_1.spawn)(process.execPath, [HOOK_ENTRY], { env });
-        let stdout = '';
-        let stderr = '';
-        child.stdout.on('data', (chunk) => {
-            stdout += chunk.toString();
-        });
-        child.stderr.on('data', (chunk) => {
-            stderr += chunk.toString();
-        });
-        child.on('error', reject);
-        child.on('close', (code) => {
-            resolve({ stdout, stderr, code: code ?? -1 });
-        });
-        child.stdin.write(stdin);
-        child.stdin.end();
+    return (0, fixtures_1.makeTestEnv)(configPath, {
+        apiKey: 'sk-hook',
+        homePrefix: 'periscope-hook-home-',
+        cacheDir: cacheDir ?? (0, fixtures_1.makeTempDir)('periscope-hook-cache-'),
     });
 }
 (0, node_test_1.test)('describeImageEntries 并行逐图容错：单图失败置 null 不阻塞其余', async () => {
@@ -179,7 +156,7 @@ function runHook(stdin, env) {
         image_count: 2,
         image_paths: [img1, img2],
     });
-    const { stdout, stderr, code } = await runHook(stdin, hookEnv(configPath));
+    const { stdout, stderr, code } = await (0, hook_1.runHook)(HOOK_ENTRY, stdin, hookEnv(configPath));
     const parsed = JSON.parse(stdout);
     assert.equal(code, 0);
     assert.equal(stderr, '');
@@ -203,7 +180,7 @@ function runHook(stdin, env) {
         image_count: 2,
         image_paths: [img1, path.join(dir, 'missing.png')],
     });
-    const { stdout, code } = await runHook(stdin, hookEnv(configPath));
+    const { stdout, code } = await (0, hook_1.runHook)(HOOK_ENTRY, stdin, hookEnv(configPath));
     const parsed = JSON.parse(stdout);
     assert.equal(code, 0);
     assert.equal(parsed.decision, 'approve');
@@ -232,8 +209,8 @@ function runHook(stdin, env) {
         image_count: 1,
         image_paths: [img],
     });
-    const first = await runHook(stdin, env);
-    const second = await runHook(stdin, env);
+    const first = await (0, hook_1.runHook)(HOOK_ENTRY, stdin, env);
+    const second = await (0, hook_1.runHook)(HOOK_ENTRY, stdin, env);
     assert.match(JSON.parse(first.stdout).hookSpecificOutput.additionalContext, /缓存描述/);
     assert.match(JSON.parse(second.stdout).hookSpecificOutput.additionalContext, /缓存描述/);
     assert.equal(calls, 1, '第二次应命中缓存，不再请求视觉 API');

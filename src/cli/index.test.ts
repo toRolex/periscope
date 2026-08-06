@@ -6,20 +6,14 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { DEFAULT_CONFIG } from '../config/config';
 import { createMockServer } from '../testing/mock-server';
-import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 
 const execFileP = promisify(execFile);
 /** 编译后测试位于 dist/cli/，CLI 入口即同目录的 index.js。 */
 const CLI_ENTRY = path.join(__dirname, 'index.js');
 
 function cliEnv(configPath: string): Record<string, string | undefined> {
-  return {
-    ...process.env,
-    PERISCOPE_CONFIG: configPath,
-    PERISCOPE_API_KEY: 'sk-cli',
-    // 隔离真实 HOME，避免 CLI 意外写入用户配置目录
-    HOME: makeTempDir('periscope-cli-home-'),
-  };
+  return makeTestEnv(configPath, { apiKey: 'sk-cli', homePrefix: 'periscope-cli-home-' });
 }
 
 test('CLI describe 输出纯文本描述到 stdout 并以 0 退出', async (t) => {

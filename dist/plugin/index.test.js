@@ -87,21 +87,14 @@ function runNode(args, stdin, env) {
     });
 }
 function hookEnv(configPath) {
-    return {
-        ...process.env,
-        PERISCOPE_CONFIG: configPath,
-        PERISCOPE_API_KEY: 'sk-plugin',
-        HOME: (0, fixtures_1.makeTempDir)('periscope-plugin-home-'),
-        PERISCOPE_CACHE_DIR: (0, fixtures_1.makeTempDir)('periscope-plugin-cache-'),
-    };
+    return (0, fixtures_1.makeTestEnv)(configPath, {
+        apiKey: 'sk-plugin',
+        homePrefix: 'periscope-plugin-home-',
+        cacheDir: (0, fixtures_1.makeTempDir)('periscope-plugin-cache-'),
+    });
 }
 function cliEnv(configPath) {
-    return {
-        ...process.env,
-        PERISCOPE_CONFIG: configPath,
-        PERISCOPE_API_KEY: 'sk-plugin',
-        HOME: (0, fixtures_1.makeTempDir)('periscope-plugin-home-'),
-    };
+    return (0, fixtures_1.makeTestEnv)(configPath, { apiKey: 'sk-plugin', homePrefix: 'periscope-plugin-home-' });
 }
 (0, node_test_1.test)('AC1 插件清单：.claude-plugin/plugin.json 存在、合法 JSON、name 必填为 periscope', () => {
     assert.ok(fs.existsSync(PLUGIN_MANIFEST), 'plugin.json 必须存在');

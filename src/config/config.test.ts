@@ -4,34 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { DEFAULT_CONFIG, defaultConfigPath, loadConfig } from './config';
 import { Protocol } from '../protocols/types';
-import { makeTempDir } from '../testing/fixtures';
-
-/** 临时设置/删除若干环境变量，测试结束自动还原。 */
-function withEnv(
-  env: Record<string, string | undefined>,
-  fn: () => void,
-): void {
-  const saved = new Map<string, string | undefined>();
-  for (const key of Object.keys(env)) {
-    saved.set(key, process.env[key]);
-    if (env[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = env[key];
-    }
-  }
-  try {
-    fn();
-  } finally {
-    for (const [key, value] of saved) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
-}
+import { makeTempDir, withEnv } from '../testing/fixtures';
 
 test('首次运行懒创建：PERISCOPE_CONFIG 指向的路径自动生成默认配置', () => {
   const dir = makeTempDir();

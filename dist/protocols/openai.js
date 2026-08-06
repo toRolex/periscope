@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.openaiAdapter = void 0;
 const types_1 = require("./types");
+const parse_1 = require("./parse");
 /**
  * openai 协议（chat/completions）。与 anthropic / responses 并列的三协议实现之一。
  * 响应提取遵循「容错透传」：非 JSON / 缺 content 时返回原始响应文本。
@@ -31,13 +32,9 @@ exports.openaiAdapter = {
         };
     },
     extractText(responseText) {
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        }
-        catch {
+        const data = (0, parse_1.tryParseJson)(responseText);
+        if (data === null)
             return responseText; // 非 JSON → 透传原始文本
-        }
         const content = data?.choices?.[0]?.message?.content;
         if (typeof content === 'string')
             return content;
