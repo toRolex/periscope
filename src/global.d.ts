@@ -40,6 +40,7 @@ declare module 'node:fs' {
     size: number;
   }
   export function readFileSync(p: string): ByteBuf;
+  export function readFileSync(p: number, encoding: string): string;
   export function writeFileSync(p: string, data: string | ByteBuf): void;
   export function mkdirSync(p: string, opts?: { recursive?: boolean }): string | undefined;
   export function existsSync(p: string): boolean;
@@ -79,6 +80,11 @@ declare module 'node:child_process' {
     options?: { env?: Record<string, string | undefined>; cwd?: string },
     callback?: (error: Error | null, stdout: string, stderr: string) => void,
   ): unknown;
+  export function spawn(
+    command: string,
+    args?: string[],
+    options?: { env?: Record<string, string | undefined>; cwd?: string },
+  ): any;
 }
 
 declare module 'node:util' {
