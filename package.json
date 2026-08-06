@@ -1,0 +1,21 @@
+{
+  "name": "periscope",
+  "version": "0.1.0",
+  "description": "给纯文本 coding agent 的视觉桥插件（MVP）—— CLI 到视觉模型的最小完整路径",
+  "private": true,
+  "type": "commonjs",
+  "bin": {
+    "periscope": "dist/cli/index.js"
+  },
+  "main": "dist/core/describe.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test \"dist/**/*.test.js\""
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
