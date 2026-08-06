@@ -142,7 +142,46 @@ test('describeMany 并行请求多图并按输入顺序聚合', async () => {
     { transport: fakeTransport, config },
   );
 
-  assert.deepEqual(results, ['第一张描述', '第二张描述']);
+  assert.equal(results.length, 2);
+  assert.equal(results[0].source, 'https://example.com/first.png');
+  assert.equal(results[0].description, '第一张描述');
+  assert.equal(results[0].error, undefined);
+  assert.equal(results[1].source, 'https://example.com/second.png');
+  assert.equal(results[1].description, '第二张描述');
+  assert.equal(results[1].error, undefined);
+});
+
+test('describeMany 逐图容错：单图失败不丢其余成功结果', async () => {
+  const config = writeConfigFile(makeTempDir()).config;
+  const fakeTransport: HttpTransport = {
+    async post(req) {
+      const url = (req.body as any).messages[0].content[1].image_url.url as string;
+      if (url.includes('bad')) {
+        return { status: 500, ok: false, text: 'boom' };
+      }
+      return {
+        status: 200,
+        ok: true,
+        text: JSON.stringify({ choices: [{ message: { content: '好图描述' } }] }),
+      };
+    },
+  };
+
+  const results = await describeMany(
+    [
+      { imagePath: 'https://example.com/good.png' },
+      { imagePath: 'https://example.com/bad.png' },
+    ],
+    { transport: fakeTransport, config },
+  );
+
+  assert.equal(results.length, 2);
+  assert.equal(results[0].source, 'https://example.com/good.png');
+  assert.equal(results[0].description, '好图描述', '成功图应保留描述');
+  assert.equal(results[1].source, 'https://example.com/bad.png');
+  assert.equal(results[1].description, null, '失败图应标记为 null 而非整体抛错');
+  assert.ok(results[1].error !== undefined, '失败图应携带失败原因');
+  assert.match(results[1].error ?? '', /HTTP 500/);
 });
 
 test('describeMany 多图同时发起请求（并行度）', async () => {
@@ -333,4 +372,32 @@ test('describe anthropic 端点返回非 2xx 时抛错', async (t) => {
   }).config;
 
   await assert.rejects(describe({ imagePath }, { config }), /HTTP 429/);
+});
+
+test('describe anthropic 协议 + http URL 远程图：请求 body 的 image source 为 url 类型', async (t) => {
+  const server = await createMockServer({
+    defaultBody: JSON.stringify({
+      content: [{ type: 'text', text: 'URL 图描述' }],
+    }),
+  });
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const config = writeConfigFile(dir, {
+    protocol: 'anthropic',
+    apiKey: 'sk-ant-core',
+    anthropic: { ...DEFAULT_CONFIG.anthropic, baseUrl: server.baseUrl },
+  }).config;
+
+  const text = await describe(
+    { imagePath: 'https://example.com/cat.png' },
+    { config },
+  );
+
+  assert.equal(text, 'URL 图描述');
+  assert.equal(server.requests.length, 1);
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[1].type, 'image');
+  assert.equal(body.messages[0].content[1].source.type, 'url');
+  assert.equal(body.messages[0].content[1].source.url, 'https://example.com/cat.png');
 });

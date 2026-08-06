@@ -51,14 +51,14 @@ function basenameOf(imagePath) {
 }
 /**
  * 多图并行描述，逐图容错：单图失败记 description=null，不阻塞其余。
- * 复用核心 describe()（含缓存命中与请求构造）；并行度与 describeMany 一致，
- * 差异仅在失败策略——hook 层需要"单张失败注入占位符"，而非 fail-fast。
+ * 复用核心 describeMany()（含缓存命中、请求构造与逐图容错聚合）；
+ * hook 层把容错结果映射为 {path, description}——失败注入占位符，而非 fail-fast。
  */
 async function describeImageEntries(paths, opts = {}) {
-    const settled = await Promise.allSettled(paths.map((p) => (0, describe_1.describe)({ imagePath: p }, opts)));
-    return settled.map((result, i) => ({
-        path: paths[i],
-        description: result.status === 'fulfilled' ? result.value : null,
+    const outcomes = await (0, describe_1.describeMany)(paths.map((p) => ({ imagePath: p })), opts);
+    return outcomes.map((outcome) => ({
+        path: outcome.source,
+        description: outcome.description,
     }));
 }
 function formatLine(n, result) {

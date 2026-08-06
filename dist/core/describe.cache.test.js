@@ -112,3 +112,13 @@ function setup(server) {
     await (0, describe_1.describe)({ imagePath: b }, { config, cacheDir });
     assert.equal(server.requests.length, 2, '路径不同应各自请求');
 });
+(0, node_test_1.test)('同图同 intent 命中缓存；不同 intent 视为不同 key 重新请求', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)();
+    t.after(() => server.close());
+    const { cacheDir, imagePath, config } = setup(server);
+    await (0, describe_1.describe)({ imagePath, intent: '看颜色' }, { config, cacheDir });
+    await (0, describe_1.describe)({ imagePath, intent: '看颜色' }, { config, cacheDir });
+    assert.equal(server.requests.length, 1, '同图同意图第二次应命中缓存');
+    await (0, describe_1.describe)({ imagePath, intent: '看形状' }, { config, cacheDir });
+    assert.equal(server.requests.length, 2, '同图不同意图应重新请求');
+});

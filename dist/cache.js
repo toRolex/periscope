@@ -47,10 +47,11 @@ function defaultCacheDir() {
         path.join(os.homedir(), '.cache', 'periscope'));
 }
 /**
- * 图片描述缓存 key：绝对路径 + 修改时间 + 大小 → sha256 哈希。
- * 图片变化（路径 / 修改时间 / 大小任一变化）key 即变，从而自动失效。
+ * 图片描述缓存 key：绝对路径 + 修改时间 + 大小 + 意图 → sha256 哈希。
+ * 图片变化（路径 / 修改时间 / 大小任一变化）或意图不同 key 即变，从而自动失效；
+ * 同图同意图复用缓存，同图不同意图视为不同 key 重新请求。
  */
-function imageCacheKey(imagePath) {
+function imageCacheKey(imagePath, intent = '') {
     const resolved = path.resolve(imagePath);
     let stat;
     try {
@@ -60,7 +61,7 @@ function imageCacheKey(imagePath) {
         const reason = err instanceof Error ? err.message : String(err);
         throw new Error(`无法读取图片文件: ${resolved}（${reason}）`);
     }
-    const seed = `${resolved}\n${stat.mtimeMs}\n${stat.size}`;
+    const seed = `${resolved}\n${stat.mtimeMs}\n${stat.size}\n${intent}`;
     return crypto.createHash('sha256').update(seed).digest('hex');
 }
 function entryPath(cacheDir, key) {

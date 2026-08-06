@@ -105,6 +105,13 @@ function withEnv(env, fn) {
     const after = (0, cache_1.imageCacheKey)(imagePath);
     assert.notEqual(before, after);
 });
+(0, node_test_1.test)('imageCacheKey 同图同意图 key 相同；意图不同 key 变化', () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    assert.equal((0, cache_1.imageCacheKey)(imagePath, '看颜色'), (0, cache_1.imageCacheKey)(imagePath, '看颜色'), '同图同意图应得到相同 key');
+    assert.notEqual((0, cache_1.imageCacheKey)(imagePath, '看颜色'), (0, cache_1.imageCacheKey)(imagePath, '看形状'), '同图不同意图应得到不同 key');
+    assert.equal((0, cache_1.imageCacheKey)(imagePath, ''), (0, cache_1.imageCacheKey)(imagePath, undefined), '空 intent 与缺省 intent 应视为同一 key');
+});
 (0, node_test_1.test)('writeCacheEntry 持久化 + readCacheEntry 读回；未命中返回 undefined', () => {
     const cacheDir = path.join((0, fixtures_1.makeTempDir)(), 'nested', 'cache');
     const key = 'abc123';

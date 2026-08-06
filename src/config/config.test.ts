@@ -106,3 +106,22 @@ test('默认配置 apiKey 为空字符串', () => {
     assert.equal(loadConfig().apiKey, '');
   });
 });
+
+test('配置文件只改 openai.baseUrl：openai.model 保留默认、其他协议段默认值完整', () => {
+  const dir = makeTempDir();
+  const configPath = path.join(dir, 'config.json');
+  fs.writeFileSync(
+    configPath,
+    JSON.stringify({ openai: { baseUrl: 'https://my-gateway.example.com/v1' } }),
+  );
+  withEnv({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
+    const cfg = loadConfig();
+    assert.equal(cfg.openai.baseUrl, 'https://my-gateway.example.com/v1');
+    assert.equal(cfg.openai.model, 'qwen-vl-max', '未修改的 openai.model 应保留默认值');
+    assert.equal(cfg.protocol, 'openai', '顶层 protocol 保持默认');
+    assert.equal(cfg.anthropic.baseUrl, DEFAULT_CONFIG.anthropic.baseUrl);
+    assert.equal(cfg.anthropic.model, DEFAULT_CONFIG.anthropic.model);
+    assert.equal(cfg.responses.baseUrl, DEFAULT_CONFIG.responses.baseUrl);
+    assert.equal(cfg.responses.model, DEFAULT_CONFIG.responses.model);
+  });
+});

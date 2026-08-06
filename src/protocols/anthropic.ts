@@ -17,9 +17,27 @@ export function dataUrlToImageSource(
   return { mediaType, data };
 }
 
+/** http(s) URL 判定：远程图直接透传 URL，无需下载为 data URL。 */
+const REMOTE_URL_RE = /^https?:\/\//i;
+
+/**
+ * 把图片源转为 anthropic image source：本地 data URL 用 {base64,media_type,data}；
+ * http(s) URL 远程图用 {type:"url",url}，与其他协议对 URL 图的行为保持一致。
+ */
+function toImageSource(imageDataUrl: string):
+  | { type: 'url'; url: string }
+  | { type: 'base64'; media_type: string; data: string } {
+  if (REMOTE_URL_RE.test(imageDataUrl)) {
+    return { type: 'url', url: imageDataUrl };
+  }
+  const { mediaType, data } = dataUrlToImageSource(imageDataUrl);
+  return { type: 'base64', media_type: mediaType, data };
+}
+
 /**
  * anthropic 协议（v1/messages）。本期新增实现。
- * 鉴权头为 x-api-key + anthropic-version；图片走 image content block 的 source{base64,media_type,data}。
+ * 鉴权头为 x-api-key + anthropic-version；图片走 image content block 的 source：
+ * 本地 data URL 用 {base64,media_type,data}，http(s) URL 远程图用 {url}。
  * 响应提取遵循「容错透传」：非 JSON / 缺 content 时返回原始响应文本。
  */
 export const anthropicAdapter: ProtocolAdapter = {
@@ -33,7 +51,7 @@ export const anthropicAdapter: ProtocolAdapter = {
     if (input.apiKey) {
       headers['x-api-key'] = input.apiKey;
     }
-    const { mediaType, data } = dataUrlToImageSource(input.imageDataUrl);
+    const source = toImageSource(input.imageDataUrl);
     return {
       url: `${input.baseUrl}/v1/messages`,
       headers,
@@ -45,10 +63,7 @@ export const anthropicAdapter: ProtocolAdapter = {
             role: 'user',
             content: [
               { type: 'text', text: input.intent ?? DEFAULT_IMAGE_PROMPT },
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: mediaType, data },
-              },
+              { type: 'image', source },
             ],
           },
         ],

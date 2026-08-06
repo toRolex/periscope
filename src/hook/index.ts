@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import * as fs from 'node:fs';
-import { describe, DescribeOptions } from '../core/describe';
+import { describeMany, DescribeOptions } from '../core/describe';
 
 /**
  * UserPromptSubmit hook 桥接：读取 Claude Code 发送到 stdin 的事件 JSON，
@@ -39,17 +39,20 @@ export function basenameOf(imagePath: string): string {
 
 /**
  * 多图并行描述，逐图容错：单图失败记 description=null，不阻塞其余。
- * 复用核心 describe()（含缓存命中与请求构造）；并行度与 describeMany 一致，
- * 差异仅在失败策略——hook 层需要"单张失败注入占位符"，而非 fail-fast。
+ * 复用核心 describeMany()（含缓存命中、请求构造与逐图容错聚合）；
+ * hook 层把容错结果映射为 {path, description}——失败注入占位符，而非 fail-fast。
  */
 export async function describeImageEntries(
   paths: string[],
   opts: DescribeOptions = {},
 ): Promise<DescribeResult[]> {
-  const settled = await Promise.allSettled(paths.map((p) => describe({ imagePath: p }, opts)));
-  return settled.map((result, i) => ({
-    path: paths[i],
-    description: result.status === 'fulfilled' ? result.value : null,
+  const outcomes = await describeMany(
+    paths.map((p) => ({ imagePath: p })),
+    opts,
+  );
+  return outcomes.map((outcome) => ({
+    path: outcome.source,
+    description: outcome.description,
   }));
 }
 

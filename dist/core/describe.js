@@ -79,7 +79,7 @@ function truncate(text, max = 200) {
 /**
  * 协议无关核心：单图视觉描述。
  * 流程：加载配置（懒创建 + 环境变量优先）→ 按协议取适配器 → 本地图片查缓存（key =
- * 图片路径+修改时间+大小 哈希；远程 URL 不缓存）→ 未命中才转 data URL → 适配器构造请求
+ * 图片路径+修改时间+大小+意图 哈希；远程 URL 不缓存）→ 未命中才转 data URL → 适配器构造请求
  * → 传输发出 → 非 2xx 抛错、2xx 容错提取文本 → 结果写回缓存。
  */
 async function describe(input, opts = {}) {
@@ -90,7 +90,7 @@ async function describe(input, opts = {}) {
     let cache = null;
     // 远程 URL 不落本地缓存：缓存 key 依赖本地文件 stat，且远程内容可变。
     if (cacheDir !== null && !REMOTE_URL_RE.test(input.imagePath)) {
-        const key = (0, cache_1.imageCacheKey)(input.imagePath);
+        const key = (0, cache_1.imageCacheKey)(input.imagePath, input.intent);
         cache = { dir: cacheDir, key };
         const cached = (0, cache_1.readCacheEntry)(key, cacheDir);
         if (cached !== undefined)
@@ -115,9 +115,18 @@ async function describe(input, opts = {}) {
     return text;
 }
 /**
- * 多图并行视觉描述：并行请求各图，按输入顺序聚合输出，总耗时约等于最慢单图。
- * 任一输入失败即整体失败（fail-fast，与单图报错语义一致）。
+ * 多图并行视觉描述：逐图容错聚合，按输入顺序返回结果。
+ * 单图失败不丢弃其余成功结果——失败项 description 为 null 并附 error，调用方自行决定如何呈现。
  */
 async function describeMany(inputs, opts = {}) {
-    return Promise.all(inputs.map((input) => describe(input, opts)));
+    const settled = await Promise.allSettled(inputs.map((input) => describe(input, opts)));
+    return settled.map((result, i) => ({
+        source: inputs[i].imagePath,
+        description: result.status === 'fulfilled' ? result.value : null,
+        error: result.status === 'rejected'
+            ? result.reason instanceof Error
+                ? result.reason.message
+                : String(result.reason)
+            : undefined,
+    }));
 }

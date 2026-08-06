@@ -164,6 +164,28 @@ function cliEnv(configPath) {
     assert.equal(stderr, '');
     assert.equal(server.requests.length, 2);
 });
+(0, node_test_1.test)('CLI 多图一败一胜：stdout 保留成功描述，stderr 标注失败，退出码非零', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)({
+        defaultBody: JSON.stringify({ choices: [{ message: { content: '成功图描述' } }] }),
+    });
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
+    const missing = path.join(dir, 'missing.png');
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const err = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        img1,
+        missing,
+    ], { env: cliEnv(configPath) }).catch((e) => e);
+    assert.notEqual(err.code, 0, '有失败项时退出码应非零');
+    assert.match(err.stdout, new RegExp(`${img1}: 成功图描述`), '成功项描述应保留在 stdout');
+    assert.match(err.stderr, /无法读取图片文件/, '失败信息应走 stderr');
+    assert.equal(server.requests.length, 1, '缺失图不发起请求，成功图只请求一次');
+});
 (0, node_test_1.test)('CLI 接受 URL 远程图片并输出描述', async (t) => {
     const server = await (0, mock_server_1.createMockServer)({
         defaultBody: JSON.stringify({ choices: [{ message: { content: 'URL 图描述' } }] }),
