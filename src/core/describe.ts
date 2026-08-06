@@ -5,6 +5,7 @@ import { getProtocol } from '../protocols';
 import { defaultTransport, HttpTransport } from '../transport';
 
 export interface DescribeInput {
+  /** 图片源：本地路径或 http(s) URL。 */
   imagePath: string;
   intent?: string;
 }
@@ -18,8 +19,15 @@ export interface DescribeOptions {
   configPath?: string;
 }
 
-function imageToDataUrl(imagePath: string): string {
-  const resolved = path.resolve(imagePath);
+/**
+ * 把图片源转为请求用的 image_url：本地路径读取文件转 data URL；
+ * http(s) URL 直接透传（视觉模型自行获取，无需先下载到本地）。
+ */
+function sourceToImageUrl(source: string): string {
+  if (/^https?:\/\//i.test(source)) {
+    return source;
+  }
+  const resolved = path.resolve(source);
   let data: { toString(encoding?: string): string };
   try {
     data = fs.readFileSync(resolved);
@@ -59,13 +67,13 @@ export async function describe(
   const adapter = getProtocol(config.protocol);
   const transport = opts.transport ?? defaultTransport;
 
-  const imageDataUrl = imageToDataUrl(input.imagePath);
+  const imageUrl = sourceToImageUrl(input.imagePath);
   const { baseUrl, model } = endpointFor(config);
 
   const request = adapter.buildRequest({
     baseUrl,
     model,
-    imageDataUrl,
+    imageDataUrl: imageUrl,
     intent: input.intent,
     apiKey: config.apiKey || undefined,
   });
@@ -75,4 +83,15 @@ export async function describe(
     throw new Error(`视觉端点返回 HTTP ${response.status}: ${truncate(response.text)}`);
   }
   return adapter.extractText(response.text);
+}
+
+/**
+ * 多图并行视觉描述：并行请求各图，按输入顺序聚合输出，总耗时约等于最慢单图。
+ * 任一输入失败即整体失败（fail-fast，与单图报错语义一致）。
+ */
+export async function describeMany(
+  inputs: DescribeInput[],
+  opts: DescribeOptions = {},
+): Promise<string[]> {
+  return Promise.all(inputs.map((input) => describe(input, opts)));
 }

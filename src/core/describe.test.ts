@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { describe } from './describe';
+import { describe, describeMany } from './describe';
 import { DEFAULT_CONFIG } from '../config/config';
+import { HttpTransport } from '../transport';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 
@@ -90,6 +91,79 @@ test('describe 图片文件不存在时抛错', async () => {
     describe({ imagePath: path.join(dir, 'missing.png') }, { config }),
     /无法读取图片文件/,
   );
+});
+
+test('describe 接受 http(s) URL 图片：请求 body 的 image_url.url 透传该 URL', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const config = writeConfigFile(dir, {
+    apiKey: 'sk-core',
+    openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+  }).config;
+
+  const text = await describe({ imagePath: 'https://example.com/cat.png' }, { config });
+
+  assert.equal(text, 'mock 默认描述');
+  assert.equal(server.requests.length, 1);
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[1].image_url.url, 'https://example.com/cat.png');
+});
+
+test('describeMany 并行请求多图并按输入顺序聚合', async () => {
+  const config = writeConfigFile(makeTempDir()).config;
+  const fakeTransport: HttpTransport = {
+    async post(req) {
+      const url = (req.body as any).messages[0].content[1].image_url.url as string;
+      const text = url.includes('first') ? '第一张描述' : '第二张描述';
+      return {
+        status: 200,
+        ok: true,
+        text: JSON.stringify({ choices: [{ message: { content: text } }] }),
+      };
+    },
+  };
+
+  const results = await describeMany(
+    [
+      { imagePath: 'https://example.com/first.png' },
+      { imagePath: 'https://example.com/second.png' },
+    ],
+    { transport: fakeTransport, config },
+  );
+
+  assert.deepEqual(results, ['第一张描述', '第二张描述']);
+});
+
+test('describeMany 多图同时发起请求（并行度）', async () => {
+  const config = writeConfigFile(makeTempDir()).config;
+  let active = 0;
+  let maxActive = 0;
+  const fakeTransport: HttpTransport = {
+    async post() {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      active -= 1;
+      return {
+        status: 200,
+        ok: true,
+        text: JSON.stringify({ choices: [{ message: { content: '描述' } }] }),
+      };
+    },
+  };
+
+  const results = await describeMany(
+    [
+      { imagePath: 'https://example.com/a.png' },
+      { imagePath: 'https://example.com/b.png' },
+    ],
+    { transport: fakeTransport, config },
+  );
+
+  assert.equal(results.length, 2);
+  assert.equal(maxActive, 2, '两个请求应同时并发发出');
 });
 
 test('describe 未注入配置时走 loadConfig：环境变量优先于文件 apiKey', async (t) => {

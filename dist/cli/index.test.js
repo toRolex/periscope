@@ -137,3 +137,50 @@ function cliEnv(configPath) {
     assert.notEqual(err.code, 0);
     assert.match(err.stderr, /用法/);
 });
+(0, node_test_1.test)('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
+    const img2 = path.join(dir, 'b.png');
+    const secondBase64 = Buffer.from('second-image-bytes', 'utf8').toString('base64');
+    fs.writeFileSync(img2, Buffer.from('second-image-bytes', 'utf8'));
+    const server = await (0, mock_server_1.createMockServer)({
+        handler: (req) => {
+            const url = req.jsonBody.messages[0].content[1].image_url.url;
+            const content = url.includes(secondBase64) ? '第二张描述' : '第一张描述';
+            return { status: 200, body: JSON.stringify({ choices: [{ message: { content } }] }) };
+        },
+    });
+    t.after(() => server.close());
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        img1,
+        img2,
+    ], { env: cliEnv(configPath) });
+    assert.equal(stdout, `${img1}: 第一张描述\n${img2}: 第二张描述\n`);
+    assert.equal(stderr, '');
+    assert.equal(server.requests.length, 2);
+});
+(0, node_test_1.test)('CLI 接受 URL 远程图片并输出描述', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)({
+        defaultBody: JSON.stringify({ choices: [{ message: { content: 'URL 图描述' } }] }),
+    });
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const url = 'https://example.com/cat.png';
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        url,
+    ], { env: cliEnv(configPath) });
+    assert.equal(stdout, 'URL 图描述\n');
+    assert.equal(stderr, '');
+    const body = server.requests[0].jsonBody;
+    assert.equal(body.messages[0].content[1].image_url.url, url);
+});

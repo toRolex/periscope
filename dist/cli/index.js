@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.main = main;
 const describe_1 = require("../core/describe");
 function parseArgs(argv) {
-    const parsed = {};
+    const parsed = { imagePaths: [] };
     for (let i = 0; i < argv.length; i += 1) {
         const arg = argv[i];
         if (arg === '--intent') {
@@ -18,17 +18,14 @@ function parseArgs(argv) {
         else if (arg.startsWith('--')) {
             throw new Error(`未知参数: ${arg}`);
         }
-        else if (parsed.imagePath === undefined) {
-            parsed.imagePath = arg;
-        }
         else {
-            throw new Error(`多余的参数: ${arg}`);
+            parsed.imagePaths.push(arg);
         }
     }
     return parsed;
 }
 function usage() {
-    return '用法: periscope describe <图片路径> [--intent "描述内容"]';
+    return '用法: periscope describe <图片路径或URL> [...] [--intent "描述内容"]';
 }
 function errorMessage(err) {
     return err instanceof Error ? err.message : String(err);
@@ -49,14 +46,25 @@ async function main(argv) {
         process.stderr.write(`${usage()}\n`);
         return 1;
     }
-    if (!parsed.imagePath) {
+    if (parsed.imagePaths.length === 0) {
         process.stderr.write('错误: 缺少图片路径\n');
         process.stderr.write(`${usage()}\n`);
         return 1;
     }
     try {
-        const text = await (0, describe_1.describe)({ imagePath: parsed.imagePath, intent: parsed.intent });
-        process.stdout.write(`${text}\n`);
+        const inputs = parsed.imagePaths.map((imagePath) => ({
+            imagePath,
+            intent: parsed.intent,
+        }));
+        const texts = await (0, describe_1.describeMany)(inputs);
+        if (texts.length === 1) {
+            process.stdout.write(`${texts[0]}\n`);
+        }
+        else {
+            for (let i = 0; i < texts.length; i += 1) {
+                process.stdout.write(`${parsed.imagePaths[i]}: ${texts[i]}\n`);
+            }
+        }
         return 0;
     }
     catch (err) {

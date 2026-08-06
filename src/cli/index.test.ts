@@ -129,3 +129,59 @@ test('CLI 未知命令 → stderr 用法 + 非零退出码', async () => {
   assert.notEqual(err.code, 0);
   assert.match(err.stderr, /用法/);
 });
+
+test('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {
+  const dir = makeTempDir();
+  const img1 = writeFixtureImage(dir, 'a.png');
+  const img2 = path.join(dir, 'b.png');
+  const secondBase64 = Buffer.from('second-image-bytes', 'utf8').toString('base64');
+  fs.writeFileSync(img2, Buffer.from('second-image-bytes', 'utf8'));
+
+  const server = await createMockServer({
+    handler: (req) => {
+      const url = (req.jsonBody as any).messages[0].content[1].image_url.url as string;
+      const content = url.includes(secondBase64) ? '第二张描述' : '第一张描述';
+      return { status: 200, body: JSON.stringify({ choices: [{ message: { content } }] }) };
+    },
+  });
+  t.after(() => server.close());
+
+  const configPath = writeConfigFile(dir, {
+    openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+  }).path;
+
+  const { stdout, stderr } = await execFileP(process.execPath, [
+    CLI_ENTRY,
+    'describe',
+    img1,
+    img2,
+  ], { env: cliEnv(configPath) });
+
+  assert.equal(stdout, `${img1}: 第一张描述\n${img2}: 第二张描述\n`);
+  assert.equal(stderr, '');
+  assert.equal(server.requests.length, 2);
+});
+
+test('CLI 接受 URL 远程图片并输出描述', async (t) => {
+  const server = await createMockServer({
+    defaultBody: JSON.stringify({ choices: [{ message: { content: 'URL 图描述' } }] }),
+  });
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const configPath = writeConfigFile(dir, {
+    openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+  }).path;
+  const url = 'https://example.com/cat.png';
+
+  const { stdout, stderr } = await execFileP(process.execPath, [
+    CLI_ENTRY,
+    'describe',
+    url,
+  ], { env: cliEnv(configPath) });
+
+  assert.equal(stdout, 'URL 图描述\n');
+  assert.equal(stderr, '');
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[1].image_url.url, url);
+});

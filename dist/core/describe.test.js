@@ -108,6 +108,63 @@ const fixtures_1 = require("../testing/fixtures");
     const config = (0, fixtures_1.writeConfigFile)(dir, { apiKey: 'sk' }).config;
     await assert.rejects((0, describe_1.describe)({ imagePath: path.join(dir, 'missing.png') }, { config }), /无法读取图片文件/);
 });
+(0, node_test_1.test)('describe 接受 http(s) URL 图片：请求 body 的 image_url.url 透传该 URL', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)();
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const config = (0, fixtures_1.writeConfigFile)(dir, {
+        apiKey: 'sk-core',
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).config;
+    const text = await (0, describe_1.describe)({ imagePath: 'https://example.com/cat.png' }, { config });
+    assert.equal(text, 'mock 默认描述');
+    assert.equal(server.requests.length, 1);
+    const body = server.requests[0].jsonBody;
+    assert.equal(body.messages[0].content[1].image_url.url, 'https://example.com/cat.png');
+});
+(0, node_test_1.test)('describeMany 并行请求多图并按输入顺序聚合', async () => {
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
+    const fakeTransport = {
+        async post(req) {
+            const url = req.body.messages[0].content[1].image_url.url;
+            const text = url.includes('first') ? '第一张描述' : '第二张描述';
+            return {
+                status: 200,
+                ok: true,
+                text: JSON.stringify({ choices: [{ message: { content: text } }] }),
+            };
+        },
+    };
+    const results = await (0, describe_1.describeMany)([
+        { imagePath: 'https://example.com/first.png' },
+        { imagePath: 'https://example.com/second.png' },
+    ], { transport: fakeTransport, config });
+    assert.deepEqual(results, ['第一张描述', '第二张描述']);
+});
+(0, node_test_1.test)('describeMany 多图同时发起请求（并行度）', async () => {
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
+    let active = 0;
+    let maxActive = 0;
+    const fakeTransport = {
+        async post() {
+            active += 1;
+            maxActive = Math.max(maxActive, active);
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            active -= 1;
+            return {
+                status: 200,
+                ok: true,
+                text: JSON.stringify({ choices: [{ message: { content: '描述' } }] }),
+            };
+        },
+    };
+    const results = await (0, describe_1.describeMany)([
+        { imagePath: 'https://example.com/a.png' },
+        { imagePath: 'https://example.com/b.png' },
+    ], { transport: fakeTransport, config });
+    assert.equal(results.length, 2);
+    assert.equal(maxActive, 2, '两个请求应同时并发发出');
+});
 (0, node_test_1.test)('describe 未注入配置时走 loadConfig：环境变量优先于文件 apiKey', async (t) => {
     const server = await (0, mock_server_1.createMockServer)();
     t.after(() => server.close());

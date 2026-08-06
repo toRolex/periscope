@@ -34,13 +34,21 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.describe = describe;
+exports.describeMany = describeMany;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const config_1 = require("../config/config");
 const protocols_1 = require("../protocols");
 const transport_1 = require("../transport");
-function imageToDataUrl(imagePath) {
-    const resolved = path.resolve(imagePath);
+/**
+ * 把图片源转为请求用的 image_url：本地路径读取文件转 data URL；
+ * http(s) URL 直接透传（视觉模型自行获取，无需先下载到本地）。
+ */
+function sourceToImageUrl(source) {
+    if (/^https?:\/\//i.test(source)) {
+        return source;
+    }
+    const resolved = path.resolve(source);
     let data;
     try {
         data = fs.readFileSync(resolved);
@@ -74,12 +82,12 @@ async function describe(input, opts = {}) {
     const config = opts.config ?? (0, config_1.loadConfig)({ configPath: opts.configPath });
     const adapter = (0, protocols_1.getProtocol)(config.protocol);
     const transport = opts.transport ?? transport_1.defaultTransport;
-    const imageDataUrl = imageToDataUrl(input.imagePath);
+    const imageUrl = sourceToImageUrl(input.imagePath);
     const { baseUrl, model } = endpointFor(config);
     const request = adapter.buildRequest({
         baseUrl,
         model,
-        imageDataUrl,
+        imageDataUrl: imageUrl,
         intent: input.intent,
         apiKey: config.apiKey || undefined,
     });
@@ -88,4 +96,11 @@ async function describe(input, opts = {}) {
         throw new Error(`视觉端点返回 HTTP ${response.status}: ${truncate(response.text)}`);
     }
     return adapter.extractText(response.text);
+}
+/**
+ * 多图并行视觉描述：并行请求各图，按输入顺序聚合输出，总耗时约等于最慢单图。
+ * 任一输入失败即整体失败（fail-fast，与单图报错语义一致）。
+ */
+async function describeMany(inputs, opts = {}) {
+    return Promise.all(inputs.map((input) => describe(input, opts)));
 }
