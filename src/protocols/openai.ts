@@ -1,9 +1,7 @@
-import { BuildRequestInput, BuiltRequest, ProtocolAdapter } from './types';
-
-export const DEFAULT_IMAGE_PROMPT = '描述这张图片';
+import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
 
 /**
- * openai 协议（chat/completions）。本期唯一实现。
+ * openai 协议（chat/completions）。与 anthropic / responses 并列的三协议实现之一。
  * 响应提取遵循「容错透传」：非 JSON / 缺 content 时返回原始响应文本。
  */
 export const openaiAdapter: ProtocolAdapter = {

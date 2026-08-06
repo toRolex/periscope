@@ -49,6 +49,9 @@ function readme() {
     assert.match(md, /安装/);
     assert.match(md, /(pnpm|npm|yarn) (install|i)/);
     assert.match(md, /(git clone|git pull|build|dist)/);
+    // 开发说明：test 命令应为 Node 20+ 兼容写法（无引号 glob）。
+    assert.match(md, /node --test/);
+    assert.doesNotMatch(md, /node --test "dist/, 'README 不应记录带引号 glob 的旧 test 命令');
 });
 (0, node_test_1.test)('README 配置说明覆盖三协议与字段（protocol / baseUrl / model）', () => {
     const md = readme();

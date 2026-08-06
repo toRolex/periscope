@@ -3,6 +3,7 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { DEFAULT_CONFIG, defaultConfigPath, loadConfig } from './config';
+import { Protocol } from '../protocols/types';
 import { makeTempDir } from '../testing/fixtures';
 
 /** 临时设置/删除若干环境变量，测试结束自动还原。 */
@@ -124,4 +125,9 @@ test('配置文件只改 openai.baseUrl：openai.model 保留默认、其他协�
     assert.equal(cfg.responses.baseUrl, DEFAULT_CONFIG.responses.baseUrl);
     assert.equal(cfg.responses.model, DEFAULT_CONFIG.responses.model);
   });
+});
+
+test('DEFAULT_CONFIG.protocol 为 Protocol 联合类型（openai/anthropic/responses）', () => {
+  const p: Protocol = DEFAULT_CONFIG.protocol;
+  assert.ok(['openai', 'anthropic', 'responses'].includes(p));
 });

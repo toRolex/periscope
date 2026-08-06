@@ -1,6 +1,4 @@
-import { BuildRequestInput, BuiltRequest, ProtocolAdapter } from './types';
-
-const DEFAULT_IMAGE_PROMPT = '描述这张图片';
+import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
 
 /**
  * openai responses 协议（v1/responses）。本期新增实现。

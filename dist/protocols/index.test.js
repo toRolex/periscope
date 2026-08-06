@@ -46,5 +46,6 @@ const index_1 = require("./index");
     assert.equal((0, index_1.getProtocol)('responses').name, 'responses');
 });
 (0, node_test_1.test)('getProtocol 对未知协议抛错', () => {
+    // 配置来自 JSON，运行时可能携带联合外的值；此路径仍须抛错。
     assert.throws(() => (0, index_1.getProtocol)('unknown'), /未知协议/);
 });

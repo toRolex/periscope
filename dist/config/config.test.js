@@ -137,3 +137,7 @@ function withEnv(env, fn) {
         assert.equal(cfg.responses.model, config_1.DEFAULT_CONFIG.responses.model);
     });
 });
+(0, node_test_1.test)('DEFAULT_CONFIG.protocol 为 Protocol 联合类型（openai/anthropic/responses）', () => {
+    const p = config_1.DEFAULT_CONFIG.protocol;
+    assert.ok(['openai', 'anthropic', 'responses'].includes(p));
+});

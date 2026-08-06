@@ -1,3 +1,9 @@
+/** 已实现的视觉协议名。协议适配器按此注册，config.protocol 限定为该联合。 */
+export type Protocol = 'openai' | 'anthropic' | 'responses';
+
+/** 未提供 intent 时的默认图片描述提示词，三协议共用同一文案。 */
+export const DEFAULT_IMAGE_PROMPT = '描述这张图片';
+
 export interface BuildRequestInput {
   baseUrl: string;
   model: string;
