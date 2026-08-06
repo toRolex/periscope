@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { DEFAULT_CONFIG } from '../config/config';
 import { createMockServer } from '../testing/mock-server';
-import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 
 /**
  * 插件契约结构断言 + 契约执行冒烟。
@@ -73,22 +73,15 @@ function runNode(
 }
 
 function hookEnv(configPath: string): Record<string, string | undefined> {
-  return {
-    ...process.env,
-    PERISCOPE_CONFIG: configPath,
-    PERISCOPE_API_KEY: 'sk-plugin',
-    HOME: makeTempDir('periscope-plugin-home-'),
-    PERISCOPE_CACHE_DIR: makeTempDir('periscope-plugin-cache-'),
-  };
+  return makeTestEnv(configPath, {
+    apiKey: 'sk-plugin',
+    homePrefix: 'periscope-plugin-home-',
+    cacheDir: makeTempDir('periscope-plugin-cache-'),
+  });
 }
 
 function cliEnv(configPath: string): Record<string, string | undefined> {
-  return {
-    ...process.env,
-    PERISCOPE_CONFIG: configPath,
-    PERISCOPE_API_KEY: 'sk-plugin',
-    HOME: makeTempDir('periscope-plugin-home-'),
-  };
+  return makeTestEnv(configPath, { apiKey: 'sk-plugin', homePrefix: 'periscope-plugin-home-' });
 }
 
 test('AC1 插件清单：.claude-plugin/plugin.json 存在、合法 JSON、name 必填为 periscope', () => {

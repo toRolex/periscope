@@ -39,36 +39,10 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const config_1 = require("./config");
 const fixtures_1 = require("../testing/fixtures");
-/** 临时设置/删除若干环境变量，测试结束自动还原。 */
-function withEnv(env, fn) {
-    const saved = new Map();
-    for (const key of Object.keys(env)) {
-        saved.set(key, process.env[key]);
-        if (env[key] === undefined) {
-            delete process.env[key];
-        }
-        else {
-            process.env[key] = env[key];
-        }
-    }
-    try {
-        fn();
-    }
-    finally {
-        for (const [key, value] of saved) {
-            if (value === undefined) {
-                delete process.env[key];
-            }
-            else {
-                process.env[key] = value;
-            }
-        }
-    }
-}
 (0, node_test_1.test)('首次运行懒创建：PERISCOPE_CONFIG 指向的路径自动生成默认配置', () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'nested', 'config.json');
-    withEnv({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
         const cfg = (0, config_1.loadConfig)();
         assert.equal(cfg.protocol, 'openai');
         assert.equal(cfg.apiKey, '');
@@ -90,11 +64,11 @@ function withEnv(env, fn) {
 });
 (0, node_test_1.test)('默认配置路径为 HOME/.config/periscope/config.json，且可被 PERISCOPE_CONFIG 覆盖', () => {
     const dir = (0, fixtures_1.makeTempDir)();
-    withEnv({ PERISCOPE_CONFIG: undefined, HOME: dir }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CONFIG: undefined, HOME: dir }, () => {
         assert.equal((0, config_1.defaultConfigPath)(), path.join(dir, '.config', 'periscope', 'config.json'));
     });
     const overridePath = path.join(dir, 'custom.json');
-    withEnv({ PERISCOPE_CONFIG: overridePath }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CONFIG: overridePath }, () => {
         assert.equal((0, config_1.defaultConfigPath)(), overridePath);
     });
 });
@@ -102,7 +76,7 @@ function withEnv(env, fn) {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'config.json');
     fs.writeFileSync(configPath, JSON.stringify({ ...config_1.DEFAULT_CONFIG, apiKey: 'file-key' }));
-    withEnv({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: 'env-key' }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: 'env-key' }, () => {
         assert.equal((0, config_1.loadConfig)().apiKey, 'env-key');
     });
 });
@@ -110,7 +84,7 @@ function withEnv(env, fn) {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'config.json');
     fs.writeFileSync(configPath, JSON.stringify({ ...config_1.DEFAULT_CONFIG, apiKey: 'file-key' }));
-    withEnv({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
         assert.equal((0, config_1.loadConfig)().apiKey, 'file-key');
     });
 });
@@ -118,7 +92,7 @@ function withEnv(env, fn) {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'config.json');
     fs.writeFileSync(configPath, JSON.stringify(config_1.DEFAULT_CONFIG));
-    withEnv({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
         assert.equal((0, config_1.loadConfig)().apiKey, '');
     });
 });
@@ -126,7 +100,7 @@ function withEnv(env, fn) {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'config.json');
     fs.writeFileSync(configPath, JSON.stringify({ openai: { baseUrl: 'https://my-gateway.example.com/v1' } }));
-    withEnv({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
+    (0, fixtures_1.withEnv)({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
         const cfg = (0, config_1.loadConfig)();
         assert.equal(cfg.openai.baseUrl, 'https://my-gateway.example.com/v1');
         assert.equal(cfg.openai.model, 'qwen-vl-max', '未修改的 openai.model 应保留默认值');

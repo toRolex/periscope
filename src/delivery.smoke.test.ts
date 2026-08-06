@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { execFile, spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { DEFAULT_CONFIG } from './config/config';
 import { createMockServer } from './testing/mock-server';
-import { makeTempDir, writeConfigFile, writeFixtureImage } from './testing/fixtures';
+import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from './testing/fixtures';
+import { runHook } from './testing/hook';
 
 const execFileP = promisify(execFile);
 /** 编译后测试位于 dist/，CLI 与 hook 入口即同目录产物。 */
@@ -13,37 +14,10 @@ const CLI_ENTRY = path.join(__dirname, 'cli', 'index.js');
 const HOOK_ENTRY = path.join(__dirname, 'hook', 'index.js');
 
 function smokeEnv(configPath: string): Record<string, string | undefined> {
-  return {
-    ...process.env,
-    PERISCOPE_CONFIG: configPath,
-    PERISCOPE_API_KEY: 'sk-smoke',
-    // 隔离真实 HOME 与缓存，避免 smoke 污染用户目录
-    HOME: makeTempDir('periscope-smoke-home-'),
-    PERISCOPE_CACHE_DIR: makeTempDir('periscope-smoke-cache-'),
-  };
-}
-
-/** spawn 编译后 hook，写入 stdin JSON，返回 stdout/stderr/退出码。 */
-function runHook(
-  stdin: string,
-  env: Record<string, string | undefined>,
-): Promise<{ stdout: string; stderr: string; code: number }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [HOOK_ENTRY], { env });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk: { toString(): string }) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on('data', (chunk: { toString(): string }) => {
-      stderr += chunk.toString();
-    });
-    child.on('error', reject);
-    child.on('close', (code: number | null) => {
-      resolve({ stdout, stderr, code: code ?? -1 });
-    });
-    child.stdin.write(stdin);
-    child.stdin.end();
+  return makeTestEnv(configPath, {
+    apiKey: 'sk-smoke',
+    homePrefix: 'periscope-smoke-home-',
+    cacheDir: makeTempDir('periscope-smoke-cache-'),
   });
 }
 
@@ -121,7 +95,7 @@ test('smoke: README 描述的 hook 贴图注入端到端可运行（mock 端点�
     image_count: 2,
     image_paths: [img1, img2],
   });
-  const { stdout, stderr, code } = await runHook(stdin, smokeEnv(configPath));
+  const { stdout, stderr, code } = await runHook(HOOK_ENTRY, stdin, smokeEnv(configPath));
   const parsed = JSON.parse(stdout) as any;
 
   assert.equal(code, 0);
@@ -144,7 +118,7 @@ test('smoke: hook 无图片时放行且 additionalContext 为空串', async (t) 
     prompt: '无图',
     image_paths: [],
   });
-  const { stdout, code } = await runHook(stdin, smokeEnv(configPath));
+  const { stdout, code } = await runHook(HOOK_ENTRY, stdin, smokeEnv(configPath));
   const parsed = JSON.parse(stdout) as any;
 
   assert.equal(code, 0);

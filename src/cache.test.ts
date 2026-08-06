@@ -3,34 +3,7 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { defaultCacheDir, imageCacheKey, readCacheEntry, writeCacheEntry } from './cache';
-import { makeTempDir, writeFixtureImage } from './testing/fixtures';
-
-/** 临时设置/删除若干环境变量，测试结束自动还原。 */
-function withEnv(
-  env: Record<string, string | undefined>,
-  fn: () => void,
-): void {
-  const saved = new Map<string, string | undefined>();
-  for (const key of Object.keys(env)) {
-    saved.set(key, process.env[key]);
-    if (env[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = env[key];
-    }
-  }
-  try {
-    fn();
-  } finally {
-    for (const [key, value] of saved) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
-}
+import { makeTempDir, withEnv, writeFixtureImage } from './testing/fixtures';
 
 test('defaultCacheDir 默认 HOME/.cache/periscope，且可被 PERISCOPE_CACHE_DIR 覆盖', () => {
   const dir = makeTempDir();

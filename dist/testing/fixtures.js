@@ -37,6 +37,8 @@ exports.PNG_1PX_BASE64 = void 0;
 exports.makeTempDir = makeTempDir;
 exports.writeFixtureImage = writeFixtureImage;
 exports.writeConfigFile = writeConfigFile;
+exports.withEnv = withEnv;
+exports.makeTestEnv = makeTestEnv;
 const fs = __importStar(require("node:fs"));
 const os = __importStar(require("node:os"));
 const path = __importStar(require("node:path"));
@@ -58,4 +60,43 @@ function writeConfigFile(dir, overrides = {}) {
     const filePath = path.join(dir, 'config.json');
     fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
     return { path: filePath, config };
+}
+/** 临时设置/删除若干环境变量，测试结束自动还原。 */
+function withEnv(env, fn) {
+    const saved = new Map();
+    for (const key of Object.keys(env)) {
+        saved.set(key, process.env[key]);
+        if (env[key] === undefined) {
+            delete process.env[key];
+        }
+        else {
+            process.env[key] = env[key];
+        }
+    }
+    try {
+        fn();
+    }
+    finally {
+        for (const [key, value] of saved) {
+            if (value === undefined) {
+                delete process.env[key];
+            }
+            else {
+                process.env[key] = value;
+            }
+        }
+    }
+}
+/** 构造隔离的测试环境：继承 process.env，覆盖 PERISCOPE_CONFIG/API_KEY/HOME（及可选 CACHE_DIR）。 */
+function makeTestEnv(configPath, options) {
+    const env = {
+        ...process.env,
+        PERISCOPE_CONFIG: configPath,
+        PERISCOPE_API_KEY: options.apiKey,
+        HOME: makeTempDir(options.homePrefix),
+    };
+    if (options.cacheDir !== undefined) {
+        env.PERISCOPE_CACHE_DIR = options.cacheDir;
+    }
+    return env;
 }

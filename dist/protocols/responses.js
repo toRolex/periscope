@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.responsesAdapter = void 0;
 const types_1 = require("./types");
+const parse_1 = require("./parse");
 /**
  * openai responses 协议（v1/responses）。本期新增实现。
  * 图片走 input[].content[] 的 input_image 块（image_url 直接携带 data URL）。
@@ -32,13 +33,9 @@ exports.responsesAdapter = {
         };
     },
     extractText(responseText) {
-        let parsed;
-        try {
-            parsed = JSON.parse(responseText);
-        }
-        catch {
+        const parsed = (0, parse_1.tryParseJson)(responseText);
+        if (parsed === null)
             return responseText; // 非 JSON → 透传原始文本
-        }
         const output = parsed?.output;
         if (!Array.isArray(output))
             return responseText; // 缺 output → 透传原始文本

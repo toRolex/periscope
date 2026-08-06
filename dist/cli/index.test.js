@@ -46,13 +46,7 @@ const execFileP = (0, node_util_1.promisify)(node_child_process_1.execFile);
 /** 编译后测试位于 dist/cli/，CLI 入口即同目录的 index.js。 */
 const CLI_ENTRY = path.join(__dirname, 'index.js');
 function cliEnv(configPath) {
-    return {
-        ...process.env,
-        PERISCOPE_CONFIG: configPath,
-        PERISCOPE_API_KEY: 'sk-cli',
-        // 隔离真实 HOME，避免 CLI 意外写入用户配置目录
-        HOME: (0, fixtures_1.makeTempDir)('periscope-cli-home-'),
-    };
+    return (0, fixtures_1.makeTestEnv)(configPath, { apiKey: 'sk-cli', homePrefix: 'periscope-cli-home-' });
 }
 (0, node_test_1.test)('CLI describe 输出纯文本描述到 stdout 并以 0 退出', async (t) => {
     const server = await (0, mock_server_1.createMockServer)({
