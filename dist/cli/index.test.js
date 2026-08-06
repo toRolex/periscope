@@ -1,0 +1,202 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const node_test_1 = require("node:test");
+const assert = __importStar(require("node:assert"));
+const fs = __importStar(require("node:fs"));
+const path = __importStar(require("node:path"));
+const node_child_process_1 = require("node:child_process");
+const node_util_1 = require("node:util");
+const config_1 = require("../config/config");
+const mock_server_1 = require("../testing/mock-server");
+const fixtures_1 = require("../testing/fixtures");
+const execFileP = (0, node_util_1.promisify)(node_child_process_1.execFile);
+/** 编译后测试位于 dist/cli/，CLI 入口即同目录的 index.js。 */
+const CLI_ENTRY = path.join(__dirname, 'index.js');
+function cliEnv(configPath) {
+    return (0, fixtures_1.makeTestEnv)(configPath, { apiKey: 'sk-cli', homePrefix: 'periscope-cli-home-' });
+}
+(0, node_test_1.test)('CLI describe 输出纯文本描述到 stdout 并以 0 退出', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)({
+        defaultBody: JSON.stringify({ choices: [{ message: { content: '一只猫' } }] }),
+    });
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        imagePath,
+        '--intent',
+        '看看猫',
+    ], { env: cliEnv(configPath) });
+    assert.equal(stdout, '一只猫\n');
+    assert.equal(stderr, '');
+    const body = server.requests[0].jsonBody;
+    assert.equal(body.messages[0].content[0].text, '看看猫');
+    assert.equal(body.messages[0].content[1].image_url.url.startsWith('data:image/png;base64,'), true);
+});
+(0, node_test_1.test)('CLI 首次运行自动生成默认配置文件（openai + DashScope 端点）', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = path.join(dir, 'fresh', 'config.json');
+    const err = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        path.join(dir, 'nope.png'),
+    ], { env: cliEnv(configPath) }).catch((e) => e);
+    assert.notEqual(err.code, 0);
+    assert.ok(fs.existsSync(configPath), '配置文件应被懒创建');
+    const written = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
+    assert.equal(written.protocol, 'openai');
+    assert.equal(written.apiKey, '');
+    assert.equal(written.openai.baseUrl, 'https://dashscope.aliyuncs.com/compatible-mode/v1');
+});
+(0, node_test_1.test)('CLI 缺少图片路径 → stderr 报错 + 非零退出码', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = (0, fixtures_1.writeConfigFile)(dir).path;
+    const err = await execFileP(process.execPath, [CLI_ENTRY, 'describe'], {
+        env: cliEnv(configPath),
+    }).catch((e) => e);
+    assert.notEqual(err.code, 0);
+    assert.match(err.stderr, /缺少图片路径/);
+    assert.match(err.stderr, /用法/);
+});
+(0, node_test_1.test)('CLI 图片不存在 → stderr 报错 + 非零退出码', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, { apiKey: 'sk' }).path;
+    const err = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        path.join(dir, 'nope.png'),
+    ], { env: cliEnv(configPath) }).catch((e) => e);
+    assert.notEqual(err.code, 0);
+    assert.match(err.stderr, /无法读取图片文件/);
+});
+(0, node_test_1.test)('CLI 端点返回 500 → stderr 报错 + 非零退出码', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)({
+        defaultStatus: 500,
+        defaultBody: 'server error',
+    });
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const err = await execFileP(process.execPath, [CLI_ENTRY, 'describe', imagePath], {
+        env: cliEnv(configPath),
+    }).catch((e) => e);
+    assert.notEqual(err.code, 0);
+    assert.match(err.stderr, /HTTP 500/);
+});
+(0, node_test_1.test)('CLI 未知命令 → stderr 用法 + 非零退出码', async () => {
+    const err = await execFileP(process.execPath, [CLI_ENTRY, 'foo'], {
+        env: cliEnv((0, fixtures_1.makeTempDir)()),
+    }).catch((e) => e);
+    assert.notEqual(err.code, 0);
+    assert.match(err.stderr, /用法/);
+});
+(0, node_test_1.test)('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
+    const img2 = path.join(dir, 'b.png');
+    const secondBase64 = Buffer.from('second-image-bytes', 'utf8').toString('base64');
+    fs.writeFileSync(img2, Buffer.from('second-image-bytes', 'utf8'));
+    const server = await (0, mock_server_1.createMockServer)({
+        handler: (req) => {
+            const url = req.jsonBody.messages[0].content[1].image_url.url;
+            const content = url.includes(secondBase64) ? '第二张描述' : '第一张描述';
+            return { status: 200, body: JSON.stringify({ choices: [{ message: { content } }] }) };
+        },
+    });
+    t.after(() => server.close());
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        img1,
+        img2,
+    ], { env: cliEnv(configPath) });
+    assert.equal(stdout, `${img1}: 第一张描述\n${img2}: 第二张描述\n`);
+    assert.equal(stderr, '');
+    assert.equal(server.requests.length, 2);
+});
+(0, node_test_1.test)('CLI 多图一败一胜：stdout 保留成功描述，stderr 标注失败，退出码非零', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)({
+        defaultBody: JSON.stringify({ choices: [{ message: { content: '成功图描述' } }] }),
+    });
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
+    const missing = path.join(dir, 'missing.png');
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const err = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        img1,
+        missing,
+    ], { env: cliEnv(configPath) }).catch((e) => e);
+    assert.notEqual(err.code, 0, '有失败项时退出码应非零');
+    assert.match(err.stdout, new RegExp(`${img1}: 成功图描述`), '成功项描述应保留在 stdout');
+    assert.match(err.stderr, /无法读取图片文件/, '失败信息应走 stderr');
+    assert.equal(server.requests.length, 1, '缺失图不发起请求，成功图只请求一次');
+});
+(0, node_test_1.test)('CLI 接受 URL 远程图片并输出描述', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)({
+        defaultBody: JSON.stringify({ choices: [{ message: { content: 'URL 图描述' } }] }),
+    });
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    }).path;
+    const url = 'https://example.com/cat.png';
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'describe',
+        url,
+    ], { env: cliEnv(configPath) });
+    assert.equal(stdout, 'URL 图描述\n');
+    assert.equal(stderr, '');
+    const body = server.requests[0].jsonBody;
+    assert.equal(body.messages[0].content[1].image_url.url, url);
+});
