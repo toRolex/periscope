@@ -34,14 +34,24 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.describe = describe;
+exports.describeMany = describeMany;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const cache_1 = require("../cache");
 const config_1 = require("../config/config");
 const protocols_1 = require("../protocols");
 const transport_1 = require("../transport");
-function imageToDataUrl(imagePath) {
-    const resolved = path.resolve(imagePath);
+/** 远程图片 URL（http/https）判定；此类图片不落本地缓存、请求体直接透传 URL。 */
+const REMOTE_URL_RE = /^https?:\/\//i;
+/**
+ * 把图片源转为请求用的 image_url：本地路径读取文件转 data URL；
+ * http(s) URL 直接透传（视觉模型自行获取，无需先下载到本地）。
+ */
+function sourceToImageUrl(source) {
+    if (REMOTE_URL_RE.test(source)) {
+        return source;
+    }
+    const resolved = path.resolve(source);
     let data;
     try {
         data = fs.readFileSync(resolved);
@@ -68,8 +78,8 @@ function truncate(text, max = 200) {
 }
 /**
  * 协议无关核心：单图视觉描述。
- * 流程：加载配置（懒创建 + 环境变量优先）→ 按协议取适配器 → 查缓存（key =
- * 图片路径+修改时间+大小 哈希）→ 未命中才本地图片转 data URL → 适配器构造请求
+ * 流程：加载配置（懒创建 + 环境变量优先）→ 按协议取适配器 → 本地图片查缓存（key =
+ * 图片路径+修改时间+大小 哈希；远程 URL 不缓存）→ 未命中才转 data URL → 适配器构造请求
  * → 传输发出 → 非 2xx 抛错、2xx 容错提取文本 → 结果写回缓存。
  */
 async function describe(input, opts = {}) {
@@ -78,19 +88,20 @@ async function describe(input, opts = {}) {
     const transport = opts.transport ?? transport_1.defaultTransport;
     const cacheDir = opts.cacheDir === undefined ? (0, cache_1.defaultCacheDir)() : opts.cacheDir;
     let cache = null;
-    if (cacheDir !== null) {
+    // 远程 URL 不落本地缓存：缓存 key 依赖本地文件 stat，且远程内容可变。
+    if (cacheDir !== null && !REMOTE_URL_RE.test(input.imagePath)) {
         const key = (0, cache_1.imageCacheKey)(input.imagePath);
         cache = { dir: cacheDir, key };
         const cached = (0, cache_1.readCacheEntry)(key, cacheDir);
         if (cached !== undefined)
             return cached;
     }
-    const imageDataUrl = imageToDataUrl(input.imagePath);
+    const imageUrl = sourceToImageUrl(input.imagePath);
     const { baseUrl, model } = endpointFor(config);
     const request = adapter.buildRequest({
         baseUrl,
         model,
-        imageDataUrl,
+        imageDataUrl: imageUrl,
         intent: input.intent,
         apiKey: config.apiKey || undefined,
     });
@@ -102,4 +113,11 @@ async function describe(input, opts = {}) {
     if (cache !== null)
         (0, cache_1.writeCacheEntry)(cache.key, text, cache.dir);
     return text;
+}
+/**
+ * 多图并行视觉描述：并行请求各图，按输入顺序聚合输出，总耗时约等于最慢单图。
+ * 任一输入失败即整体失败（fail-fast，与单图报错语义一致）。
+ */
+async function describeMany(inputs, opts = {}) {
+    return Promise.all(inputs.map((input) => describe(input, opts)));
 }
