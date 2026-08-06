@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.describe = describe;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
+const cache_1 = require("../cache");
 const config_1 = require("../config/config");
 const protocols_1 = require("../protocols");
 const transport_1 = require("../transport");
@@ -67,13 +68,23 @@ function truncate(text, max = 200) {
 }
 /**
  * 协议无关核心：单图视觉描述。
- * 流程：加载配置（懒创建 + 环境变量优先）→ 按协议取适配器 → 本地图片转 data URL
- * → 适配器构造请求 → 传输发出 → 非 2xx 抛错、2xx 容错提取文本。
+ * 流程：加载配置（懒创建 + 环境变量优先）→ 按协议取适配器 → 查缓存（key =
+ * 图片路径+修改时间+大小 哈希）→ 未命中才本地图片转 data URL → 适配器构造请求
+ * → 传输发出 → 非 2xx 抛错、2xx 容错提取文本 → 结果写回缓存。
  */
 async function describe(input, opts = {}) {
     const config = opts.config ?? (0, config_1.loadConfig)({ configPath: opts.configPath });
     const adapter = (0, protocols_1.getProtocol)(config.protocol);
     const transport = opts.transport ?? transport_1.defaultTransport;
+    const cacheDir = opts.cacheDir === undefined ? (0, cache_1.defaultCacheDir)() : opts.cacheDir;
+    let cache = null;
+    if (cacheDir !== null) {
+        const key = (0, cache_1.imageCacheKey)(input.imagePath);
+        cache = { dir: cacheDir, key };
+        const cached = (0, cache_1.readCacheEntry)(key, cacheDir);
+        if (cached !== undefined)
+            return cached;
+    }
     const imageDataUrl = imageToDataUrl(input.imagePath);
     const { baseUrl, model } = endpointFor(config);
     const request = adapter.buildRequest({
@@ -87,5 +98,8 @@ async function describe(input, opts = {}) {
     if (!response.ok) {
         throw new Error(`视觉端点返回 HTTP ${response.status}: ${truncate(response.text)}`);
     }
-    return adapter.extractText(response.text);
+    const text = adapter.extractText(response.text);
+    if (cache !== null)
+        (0, cache_1.writeCacheEntry)(cache.key, text, cache.dir);
+    return text;
 }

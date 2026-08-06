@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { defaultCacheDir, imageCacheKey, readCacheEntry, writeCacheEntry } from '../cache';
 import { loadConfig, PeriscopeConfig } from '../config/config';
 import { getProtocol } from '../protocols';
 import { defaultTransport, HttpTransport } from '../transport';
@@ -16,6 +17,8 @@ export interface DescribeOptions {
   config?: PeriscopeConfig;
   /** 配置路径覆盖（等价于 PERISCOPE_CONFIG，优先级更高）。 */
   configPath?: string;
+  /** 缓存目录覆盖（默认 ~/.cache/periscope）；传 null 关闭缓存。 */
+  cacheDir?: string | null;
 }
 
 function imageToDataUrl(imagePath: string): string {
@@ -48,8 +51,9 @@ function truncate(text: string, max = 200): string {
 
 /**
  * 协议无关核心：单图视觉描述。
- * 流程：加载配置（懒创建 + 环境变量优先）→ 按协议取适配器 → 本地图片转 data URL
- * → 适配器构造请求 → 传输发出 → 非 2xx 抛错、2xx 容错提取文本。
+ * 流程：加载配置（懒创建 + 环境变量优先）→ 按协议取适配器 → 查缓存（key =
+ * 图片路径+修改时间+大小 哈希）→ 未命中才本地图片转 data URL → 适配器构造请求
+ * → 传输发出 → 非 2xx 抛错、2xx 容错提取文本 → 结果写回缓存。
  */
 export async function describe(
   input: DescribeInput,
@@ -58,6 +62,15 @@ export async function describe(
   const config = opts.config ?? loadConfig({ configPath: opts.configPath });
   const adapter = getProtocol(config.protocol);
   const transport = opts.transport ?? defaultTransport;
+  const cacheDir = opts.cacheDir === undefined ? defaultCacheDir() : opts.cacheDir;
+
+  let cache: { dir: string; key: string } | null = null;
+  if (cacheDir !== null) {
+    const key = imageCacheKey(input.imagePath);
+    cache = { dir: cacheDir, key };
+    const cached = readCacheEntry(key, cacheDir);
+    if (cached !== undefined) return cached;
+  }
 
   const imageDataUrl = imageToDataUrl(input.imagePath);
   const { baseUrl, model } = endpointFor(config);
@@ -74,5 +87,7 @@ export async function describe(
   if (!response.ok) {
     throw new Error(`视觉端点返回 HTTP ${response.status}: ${truncate(response.text)}`);
   }
-  return adapter.extractText(response.text);
+  const text = adapter.extractText(response.text);
+  if (cache !== null) writeCacheEntry(cache.key, text, cache.dir);
+  return text;
 }

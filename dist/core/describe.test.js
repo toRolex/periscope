@@ -40,6 +40,14 @@ const describe_1 = require("./describe");
 const config_1 = require("../config/config");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
+// describe 默认开启本地缓存，把 PERISCOPE_CACHE_DIR 指向临时目录，
+// 避免本文件的网络路径测试把缓存条目写进真实 ~/.cache/periscope。
+(0, node_test_1.before)(() => {
+    process.env.PERISCOPE_CACHE_DIR = (0, fixtures_1.makeTempDir)('periscope-cache-test-');
+});
+(0, node_test_1.after)(() => {
+    delete process.env.PERISCOPE_CACHE_DIR;
+});
 (0, node_test_1.test)('describe 通过 mock 端点发送 openai 协议请求并提取文本', async (t) => {
     const server = await (0, mock_server_1.createMockServer)({
         defaultBody: JSON.stringify({ choices: [{ message: { content: '图片里有一座山' } }] }),
