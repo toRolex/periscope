@@ -5,7 +5,8 @@ import { describe, DescribeOptions } from '../core/describe';
 /**
  * UserPromptSubmit hook 桥接：读取 Claude Code 发送到 stdin 的事件 JSON，
  * 自动并行描述携带的图片，并把 `[Image N] basename: 描述` 注入 additionalContext。
- * 始终返回 allow（省略 decision 即放行），单图失败注入 `描述不可用` 占位符，绝不阻塞发送。
+ * 始终返回 decision=approve（放行）且带 additionalContext（无图片时为空串），
+ * 单图失败注入 `描述不可用` 占位符，绝不阻塞发送。
  */
 
 /** 单图描述结果；description 为 null 表示该图描述失败。 */
@@ -14,12 +15,16 @@ export interface DescribeResult {
   description: string | null;
 }
 
-/** hook stdout 输出的 JSON 结构（Claude Code UserPromptSubmit 规范）。 */
+/**
+ * hook stdout 输出的 JSON 结构（Claude Code UserPromptSubmit 规范，2.1.x 实测 schema）。
+ * decision 取 approve|block（approve 即放行）；带 hookSpecificOutput 时 additionalContext
+ * 为必填，无图片时注入空串，避免 hook_non_blocking_error。
+ */
 export interface HookOutput {
-  decision: 'allow';
+  decision: 'approve';
   hookSpecificOutput: {
     hookEventName: 'UserPromptSubmit';
-    additionalContext?: string;
+    additionalContext: string;
   };
 }
 
@@ -90,13 +95,16 @@ export async function handleHookInput(
     : [];
 
   if (imagePaths.length === 0) {
-    return { decision: 'allow', hookSpecificOutput: { hookEventName: 'UserPromptSubmit' } };
+    return {
+      decision: 'approve',
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: '' },
+    };
   }
 
   const results = await describeImageEntries(imagePaths, opts);
   const additionalContext = buildImageContext(results);
   return {
-    decision: 'allow',
+    decision: 'approve',
     hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext },
   };
 }
@@ -110,7 +118,10 @@ function readStdin(): string {
 }
 
 function allowOutput(): HookOutput {
-  return { decision: 'allow', hookSpecificOutput: { hookEventName: 'UserPromptSubmit' } };
+  return {
+    decision: 'approve',
+    hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: '' },
+  };
 }
 
 /** 入口：读 stdin → 处理 → 输出 JSON。任何内部错误也放行（绝不 block 消息发送）。 */

@@ -112,15 +112,19 @@ test('buildImageContext 字符预算：接近 9000 截断并注明剩余未描�
   assert.match(ctx, new RegExp(`（另有 ${remaining} 张图片未描述）`));
 });
 
-test('handleHookInput 无图片时放行且不注入 additionalContext', async () => {
+test('handleHookInput 无图片时放行且 additionalContext 为空串（2.1.x schema 必填）', async () => {
   const output = await handleHookInput({
     hook_event_name: 'UserPromptSubmit',
     prompt: '你好',
     image_paths: [],
   });
-  assert.equal(output.decision, 'allow');
+  assert.equal(output.decision, 'approve');
   assert.equal(output.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
-  assert.equal(output.hookSpecificOutput.additionalContext, undefined);
+  assert.equal(
+    output.hookSpecificOutput.additionalContext,
+    '',
+    '带 hookSpecificOutput 时 additionalContext 必填，无图片注入空串',
+  );
 });
 
 test('handleHookInput 注入 additionalContext 并放行', async () => {
@@ -147,7 +151,7 @@ test('handleHookInput 注入 additionalContext 并放行', async () => {
     { transport: fakeTransport, config },
   );
 
-  assert.equal(output.decision, 'allow');
+  assert.equal(output.decision, 'approve');
   assert.equal(output.hookSpecificOutput.additionalContext, '[Image 1] a.png: 第一张描述\n[Image 2] b.png: 第二张描述');
 });
 
@@ -177,7 +181,7 @@ test('hook stdin fixture：含 image_paths 的事件注入 additionalContext', a
 
   assert.equal(code, 0);
   assert.equal(stderr, '');
-  assert.equal(parsed.decision, 'allow');
+  assert.equal(parsed.decision, 'approve');
   assert.equal(parsed.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
   assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 1\] a\.png: mock 默认描述/);
   assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 2\] b\.png: mock 默认描述/);
@@ -204,7 +208,7 @@ test('hook 失败 fixture：单图描述失败注入占位符且仍放行', asyn
   const parsed = JSON.parse(stdout) as any;
 
   assert.equal(code, 0);
-  assert.equal(parsed.decision, 'allow');
+  assert.equal(parsed.decision, 'approve');
   assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 1\] a\.png: mock 默认描述/);
   assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 2\] missing\.png: 描述不可用/);
   assert.equal(server.requests.length, 1, '缺失图不发请求，成功图只请求一次');

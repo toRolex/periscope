@@ -1,0 +1,17 @@
+{
+  "description": "UserPromptSubmit: 自动描述图片并注入 additionalContext",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/hook/index.js"],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

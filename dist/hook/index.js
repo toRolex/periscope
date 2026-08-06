@@ -95,12 +95,15 @@ async function handleHookInput(input, opts = {}) {
         ? rawPaths.filter((p) => typeof p === 'string')
         : [];
     if (imagePaths.length === 0) {
-        return { decision: 'allow', hookSpecificOutput: { hookEventName: 'UserPromptSubmit' } };
+        return {
+            decision: 'approve',
+            hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: '' },
+        };
     }
     const results = await describeImageEntries(imagePaths, opts);
     const additionalContext = buildImageContext(results);
     return {
-        decision: 'allow',
+        decision: 'approve',
         hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext },
     };
 }
@@ -113,7 +116,10 @@ function readStdin() {
     }
 }
 function allowOutput() {
-    return { decision: 'allow', hookSpecificOutput: { hookEventName: 'UserPromptSubmit' } };
+    return {
+        decision: 'approve',
+        hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: '' },
+    };
 }
 /** 入口：读 stdin → 处理 → 输出 JSON。任何内部错误也放行（绝不 block 消息发送）。 */
 function main() {

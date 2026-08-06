@@ -128,15 +128,15 @@ function runHook(stdin, env) {
     const remaining = 100 - included;
     assert.match(ctx, new RegExp(`（另有 ${remaining} 张图片未描述）`));
 });
-(0, node_test_1.test)('handleHookInput 无图片时放行且不注入 additionalContext', async () => {
+(0, node_test_1.test)('handleHookInput 无图片时放行且 additionalContext 为空串（2.1.x schema 必填）', async () => {
     const output = await (0, index_1.handleHookInput)({
         hook_event_name: 'UserPromptSubmit',
         prompt: '你好',
         image_paths: [],
     });
-    assert.equal(output.decision, 'allow');
+    assert.equal(output.decision, 'approve');
     assert.equal(output.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
-    assert.equal(output.hookSpecificOutput.additionalContext, undefined);
+    assert.equal(output.hookSpecificOutput.additionalContext, '', '带 hookSpecificOutput 时 additionalContext 必填，无图片注入空串');
 });
 (0, node_test_1.test)('handleHookInput 注入 additionalContext 并放行', async () => {
     const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
@@ -157,7 +157,7 @@ function runHook(stdin, env) {
         image_count: 2,
         image_paths: ['https://example.com/a.png', 'https://example.com/b.png'],
     }, { transport: fakeTransport, config });
-    assert.equal(output.decision, 'allow');
+    assert.equal(output.decision, 'approve');
     assert.equal(output.hookSpecificOutput.additionalContext, '[Image 1] a.png: 第一张描述\n[Image 2] b.png: 第二张描述');
 });
 (0, node_test_1.test)('hook stdin fixture：含 image_paths 的事件注入 additionalContext', async (t) => {
@@ -183,7 +183,7 @@ function runHook(stdin, env) {
     const parsed = JSON.parse(stdout);
     assert.equal(code, 0);
     assert.equal(stderr, '');
-    assert.equal(parsed.decision, 'allow');
+    assert.equal(parsed.decision, 'approve');
     assert.equal(parsed.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
     assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 1\] a\.png: mock 默认描述/);
     assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 2\] b\.png: mock 默认描述/);
@@ -206,7 +206,7 @@ function runHook(stdin, env) {
     const { stdout, code } = await runHook(stdin, hookEnv(configPath));
     const parsed = JSON.parse(stdout);
     assert.equal(code, 0);
-    assert.equal(parsed.decision, 'allow');
+    assert.equal(parsed.decision, 'approve');
     assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 1\] a\.png: mock 默认描述/);
     assert.match(parsed.hookSpecificOutput.additionalContext, /\[Image 2\] missing\.png: 描述不可用/);
     assert.equal(server.requests.length, 1, '缺失图不发请求，成功图只请求一次');
