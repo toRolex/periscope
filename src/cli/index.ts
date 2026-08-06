@@ -62,15 +62,26 @@ export async function main(argv: string[]): Promise<number> {
       imagePath,
       intent: parsed.intent,
     }));
-    const texts = await describeMany(inputs);
-    if (texts.length === 1) {
-      process.stdout.write(`${texts[0]}\n`);
-    } else {
-      for (let i = 0; i < texts.length; i += 1) {
-        process.stdout.write(`${parsed.imagePaths[i]}: ${texts[i]}\n`);
+    const outcomes = await describeMany(inputs);
+    if (outcomes.length === 1) {
+      const only = outcomes[0];
+      if (only.description !== null) {
+        process.stdout.write(`${only.description}\n`);
+        return 0;
+      }
+      process.stderr.write(`错误: ${only.error ?? '描述失败'}\n`);
+      return 1;
+    }
+    let code = 0;
+    for (const outcome of outcomes) {
+      if (outcome.description !== null) {
+        process.stdout.write(`${outcome.source}: ${outcome.description}\n`);
+      } else {
+        process.stderr.write(`${outcome.source}: ${outcome.error ?? '描述失败'}\n`);
+        code = 1;
       }
     }
-    return 0;
+    return code;
   } catch (err) {
     process.stderr.write(`错误: ${errorMessage(err)}\n`);
     return 1;

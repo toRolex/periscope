@@ -56,16 +56,27 @@ async function main(argv) {
             imagePath,
             intent: parsed.intent,
         }));
-        const texts = await (0, describe_1.describeMany)(inputs);
-        if (texts.length === 1) {
-            process.stdout.write(`${texts[0]}\n`);
+        const outcomes = await (0, describe_1.describeMany)(inputs);
+        if (outcomes.length === 1) {
+            const only = outcomes[0];
+            if (only.description !== null) {
+                process.stdout.write(`${only.description}\n`);
+                return 0;
+            }
+            process.stderr.write(`错误: ${only.error ?? '描述失败'}\n`);
+            return 1;
         }
-        else {
-            for (let i = 0; i < texts.length; i += 1) {
-                process.stdout.write(`${parsed.imagePaths[i]}: ${texts[i]}\n`);
+        let code = 0;
+        for (const outcome of outcomes) {
+            if (outcome.description !== null) {
+                process.stdout.write(`${outcome.source}: ${outcome.description}\n`);
+            }
+            else {
+                process.stderr.write(`${outcome.source}: ${outcome.error ?? '描述失败'}\n`);
+                code = 1;
             }
         }
-        return 0;
+        return code;
     }
     catch (err) {
         process.stderr.write(`错误: ${errorMessage(err)}\n`);

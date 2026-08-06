@@ -122,3 +122,18 @@ function withEnv(env, fn) {
         assert.equal((0, config_1.loadConfig)().apiKey, '');
     });
 });
+(0, node_test_1.test)('配置文件只改 openai.baseUrl：openai.model 保留默认、其他协议段默认值完整', () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = path.join(dir, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify({ openai: { baseUrl: 'https://my-gateway.example.com/v1' } }));
+    withEnv({ PERISCOPE_CONFIG: configPath, PERISCOPE_API_KEY: undefined }, () => {
+        const cfg = (0, config_1.loadConfig)();
+        assert.equal(cfg.openai.baseUrl, 'https://my-gateway.example.com/v1');
+        assert.equal(cfg.openai.model, 'qwen-vl-max', '未修改的 openai.model 应保留默认值');
+        assert.equal(cfg.protocol, 'openai', '顶层 protocol 保持默认');
+        assert.equal(cfg.anthropic.baseUrl, config_1.DEFAULT_CONFIG.anthropic.baseUrl);
+        assert.equal(cfg.anthropic.model, config_1.DEFAULT_CONFIG.anthropic.model);
+        assert.equal(cfg.responses.baseUrl, config_1.DEFAULT_CONFIG.responses.baseUrl);
+        assert.equal(cfg.responses.model, config_1.DEFAULT_CONFIG.responses.model);
+    });
+});

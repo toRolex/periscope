@@ -53,6 +53,8 @@ export interface LoadConfigOptions {
 /**
  * 读取配置；文件不存在时懒创建默认配置。
  * apiKey 解析规则：PERISCOPE_API_KEY 环境变量优先于配置文件中的 apiKey。
+ * 合并规则：顶层字段（protocol / apiKey）浅合并；各协议段深合并
+ * （...default[protocol], ...file[protocol]），避免用户只改 baseUrl 时丢失 model。
  */
 export function loadConfig(options: LoadConfigOptions = {}): PeriscopeConfig {
   const configPath = options.configPath ?? defaultConfigPath();
@@ -65,7 +67,13 @@ export function loadConfig(options: LoadConfigOptions = {}): PeriscopeConfig {
     fs.writeFileSync(configPath, JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n');
     fileConfig = DEFAULT_CONFIG;
   }
-  const merged: PeriscopeConfig = { ...DEFAULT_CONFIG, ...fileConfig };
+  const merged: PeriscopeConfig = {
+    ...DEFAULT_CONFIG,
+    ...fileConfig,
+    openai: { ...DEFAULT_CONFIG.openai, ...(fileConfig.openai ?? {}) },
+    anthropic: { ...DEFAULT_CONFIG.anthropic, ...(fileConfig.anthropic ?? {}) },
+    responses: { ...DEFAULT_CONFIG.responses, ...(fileConfig.responses ?? {}) },
+  };
   const apiKey = process.env.PERISCOPE_API_KEY ?? merged.apiKey;
   return { ...merged, apiKey };
 }

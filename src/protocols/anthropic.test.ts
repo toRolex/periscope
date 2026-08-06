@@ -75,3 +75,18 @@ test('extractText 对缺少 content 的响应透传原始文本', () => {
   const raw = '{"error":{"message":"bad request"}}';
   assert.equal(anthropicAdapter.extractText(raw), raw);
 });
+
+test('buildRequest 对 http(s) URL 图片使用 url source 而非 base64', () => {
+  const req = anthropicAdapter.buildRequest({
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-3-5-sonnet-latest',
+    imageDataUrl: 'https://example.com/cat.png',
+    intent: '描述',
+  });
+  const body = req.body as any;
+  assert.equal(body.messages[0].content[1].type, 'image');
+  assert.equal(body.messages[0].content[1].source.type, 'url');
+  assert.equal(body.messages[0].content[1].source.url, 'https://example.com/cat.png');
+  assert.equal(body.messages[0].content[1].source.data, undefined);
+  assert.equal(body.messages[0].content[1].source.media_type, undefined);
+});

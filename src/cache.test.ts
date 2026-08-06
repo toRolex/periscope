@@ -77,6 +77,26 @@ test('imageCacheKey 大小变化（修改时间还原）→ key 变化', () => {
   assert.notEqual(before, after);
 });
 
+test('imageCacheKey 同图同意图 key 相同；意图不同 key 变化', () => {
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  assert.equal(
+    imageCacheKey(imagePath, '看颜色'),
+    imageCacheKey(imagePath, '看颜色'),
+    '同图同意图应得到相同 key',
+  );
+  assert.notEqual(
+    imageCacheKey(imagePath, '看颜色'),
+    imageCacheKey(imagePath, '看形状'),
+    '同图不同意图应得到不同 key',
+  );
+  assert.equal(
+    imageCacheKey(imagePath, ''),
+    imageCacheKey(imagePath, undefined),
+    '空 intent 与缺省 intent 应视为同一 key',
+  );
+});
+
 test('writeCacheEntry 持久化 + readCacheEntry 读回；未命中返回 undefined', () => {
   const cacheDir = path.join(makeTempDir(), 'nested', 'cache');
   const key = 'abc123';
