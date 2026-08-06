@@ -82,6 +82,12 @@ function withEnv(env, fn) {
         assert.equal(written.apiKey, '');
     });
 });
+(0, node_test_1.test)('默认配置含 anthropic/responses 的 baseUrl 与 model', () => {
+    assert.equal(config_1.DEFAULT_CONFIG.anthropic.baseUrl, 'https://api.anthropic.com');
+    assert.equal(config_1.DEFAULT_CONFIG.anthropic.model, 'claude-3-5-sonnet-latest');
+    assert.equal(config_1.DEFAULT_CONFIG.responses.baseUrl, 'https://api.openai.com/v1');
+    assert.equal(config_1.DEFAULT_CONFIG.responses.model, 'gpt-4o-mini');
+});
 (0, node_test_1.test)('默认配置路径为 HOME/.config/periscope/config.json，且可被 PERISCOPE_CONFIG 覆盖', () => {
     const dir = (0, fixtures_1.makeTempDir)();
     withEnv({ PERISCOPE_CONFIG: undefined, HOME: dir }, () => {

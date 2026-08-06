@@ -1,9 +1,12 @@
 import { ProtocolAdapter } from './types';
 import { openaiAdapter } from './openai';
+import { anthropicAdapter } from './anthropic';
+import { responsesAdapter } from './responses';
 
 const ADAPTERS: Record<string, ProtocolAdapter> = {
   openai: openaiAdapter,
-  // 扩展位：anthropic（v1/messages）、responses（v1/responses）在后续 issue 实现后注册于此。
+  anthropic: anthropicAdapter,
+  responses: responsesAdapter,
 };
 
 /** 按协议名取适配器；未知协议抛错。 */

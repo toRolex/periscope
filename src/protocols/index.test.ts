@@ -6,7 +6,14 @@ test('getProtocol 返回 openai 适配器', () => {
   assert.equal(getProtocol('openai').name, 'openai');
 });
 
-test('getProtocol 对未实现的协议抛错（为 anthropic/responses 留扩展位）', () => {
-  assert.throws(() => getProtocol('anthropic'), /未知协议/);
-  assert.throws(() => getProtocol('responses'), /未知协议/);
+test('getProtocol 返回 anthropic 适配器', () => {
+  assert.equal(getProtocol('anthropic').name, 'anthropic');
+});
+
+test('getProtocol 返回 responses 适配器', () => {
+  assert.equal(getProtocol('responses').name, 'responses');
+});
+
+test('getProtocol 对未知协议抛错', () => {
+  assert.throws(() => getProtocol('unknown'), /未知协议/);
 });

@@ -53,6 +53,13 @@ test('首次运行懒创建：PERISCOPE_CONFIG 指向的路径自动生成默认
   });
 });
 
+test('默认配置含 anthropic/responses 的 baseUrl 与 model', () => {
+  assert.equal(DEFAULT_CONFIG.anthropic.baseUrl, 'https://api.anthropic.com');
+  assert.equal(DEFAULT_CONFIG.anthropic.model, 'claude-3-5-sonnet-latest');
+  assert.equal(DEFAULT_CONFIG.responses.baseUrl, 'https://api.openai.com/v1');
+  assert.equal(DEFAULT_CONFIG.responses.model, 'gpt-4o-mini');
+});
+
 test('默认配置路径为 HOME/.config/periscope/config.json，且可被 PERISCOPE_CONFIG 覆盖', () => {
   const dir = makeTempDir();
   withEnv({ PERISCOPE_CONFIG: undefined, HOME: dir }, () => {
