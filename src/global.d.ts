@@ -96,6 +96,20 @@ declare module 'node:child_process' {
   ): any;
 }
 
+declare module 'node:readline' {
+  import { Readable } from 'node:stream';
+
+  export interface Interface {
+    [Symbol.asyncIterator](): AsyncIterableIterator<string>;
+    close(): void;
+  }
+
+  export function createInterface(options: {
+    input: Readable;
+    crlfDelay?: number;
+  }): Interface;
+}
+
 declare module 'node:stream' {
   export interface Readable {
     on(event: 'data', listener: (chunk: Buffer | string) => void): this;
