@@ -124,6 +124,32 @@ test('CLI 未知命令 → stderr 用法 + 非零退出码', async () => {
   assert.match(err.stderr, /用法/);
 });
 
+test('CLI doctor 子命令 → stderr 提示尚未实现 + 非零退出码', async () => {
+  const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'doctor'], {
+    env: cliEnv(makeTempDir()),
+  }).catch((e: unknown) => e);
+
+  assert.notEqual(err.code, 0);
+  assert.match(err.stderr, /doctor/);
+  assert.match(err.stderr, /尚未实现/);
+});
+
+test('CLI init 子命令：目标配置已存在 → 拒绝 + 非零退出码（fork 端到端）', async () => {
+  const dir = makeTempDir();
+  const configPath = writeConfigFile(dir, { apiKey: 'preserved-key' }).path;
+  const originalContent = require('node:fs').readFileSync(configPath, 'utf8');
+
+  const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'init'], {
+    env: cliEnv(configPath),
+    input: 'openai\nhttps://x\nm\nk',
+  } as { env: Record<string, string | undefined>; input: string }).catch((e: unknown) => e);
+
+  assert.notEqual(err.code, 0);
+  assert.match(err.stderr, /已存在/);
+  const afterContent = require('node:fs').readFileSync(configPath, 'utf8');
+  assert.equal(afterContent, originalContent, 'fork 模式下已存在文件字节不变');
+});
+
 test('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {
   const dir = makeTempDir();
   const img1 = writeFixtureImage(dir, 'a.png');
