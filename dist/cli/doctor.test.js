@@ -37,17 +37,9 @@ const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
-const node_stream_1 = require("node:stream");
 const config_1 = require("../config/config");
 const fixtures_1 = require("../testing/fixtures");
 const doctor_1 = require("./doctor");
-class StringWritable extends node_stream_1.Writable {
-    data = '';
-    _write(chunk, _enc, cb) {
-        this.data += chunk.toString('utf8');
-        cb();
-    }
-}
 /**
  * 找出 dist/ 目录：编译产物固定在 <rootDir>/dist。本测试的 distDir 直接指向仓库 dist。
  * 真实 dist/ 路径 = <repo>/dist。doctor.test.ts 在 src/cli/，编译后位于 dist/cli/，
@@ -99,8 +91,8 @@ function writePluginJson(dir, manifest) {
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/index.js', 'core/describe.js']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -125,8 +117,8 @@ function writePluginJson(dir, manifest) {
     const configPath = path.join(tmp, 'absent.json'); // 故意不创建
     const distDir = tmpDist();
     seedDist(distDir, ['cli/index.js', 'core/describe.js']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -156,8 +148,8 @@ function writePluginJson(dir, manifest) {
     fs.writeFileSync(configPath, JSON.stringify(partial));
     const distDir = tmpDist();
     seedDist(distDir, ['cli/index.js', 'core/describe.js']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -183,8 +175,8 @@ function writePluginJson(dir, manifest) {
     fs.writeFileSync(configPath, JSON.stringify(partial));
     const distDir = tmpDist();
     seedDist(distDir, ['cli/index.js', 'core/describe.js']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -209,8 +201,8 @@ function writePluginJson(dir, manifest) {
     fs.writeFileSync(configPath, JSON.stringify(partial));
     const distDir = tmpDist();
     seedDist(distDir, ['cli/index.js', 'core/describe.js']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -228,8 +220,8 @@ function writePluginJson(dir, manifest) {
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/index.js', 'core/describe.js']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -249,8 +241,8 @@ function writePluginJson(dir, manifest) {
     const distDir = tmpDist();
     // 故意只放 describe.js，缺 cli/index.js
     seedDist(distDir, ['core/describe.js']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -268,8 +260,8 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-multi-');
     const configPath = path.join(tmp, 'absent.json');
     const distDir = tmpDist(); // 空 dist
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -300,8 +292,8 @@ function writePluginJson(dir, manifest) {
         fetchCalls += 1;
         throw new Error('schema 缓存命中时不应发起外部请求');
     };
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -326,8 +318,8 @@ function writePluginJson(dir, manifest) {
     writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     seedSchemaCache(cacheDir, fixtures_1.PLUGIN_SCHEMA_1_0_0);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -350,8 +342,8 @@ function writePluginJson(dir, manifest) {
     writePluginJson(tmp, { ...VALID_PLUGIN_MANIFEST, name: 'Periscope' });
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     seedSchemaCache(cacheDir, fixtures_1.PLUGIN_SCHEMA_1_0_0);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -374,8 +366,8 @@ function writePluginJson(dir, manifest) {
     seedDist(distDir, ['cli/index.js', 'core/describe.js']);
     // 不写 plugin.json、不种子缓存 → 冷缓存，fetchFn 抛错 → 降级 ⚠️
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
         HOME: tmp,
         PERISCOPE_CONFIG: configPath,
@@ -388,4 +380,124 @@ function writePluginJson(dir, manifest) {
     assert.equal(code, 0);
     assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
     assert.match(stdout.data, /获取失败/);
+});
+(0, node_test_1.test)('doctor --offline 冷缓存时零外部请求（fetchFn 不被调用） + schema 项 ⚠️', async () => {
+    const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-cold-');
+    const configPath = writeFullConfig(tmp);
+    const distDir = tmpDist();
+    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    // 不种子缓存 → 走冷缓存路径；--offline 必须拒绝调用 fetchFn
+    const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
+    let fetchCalls = 0;
+    const shouldNotFetch = async () => {
+        fetchCalls += 1;
+        throw new Error('--offline 模式下不应调用 fetchFn');
+    };
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
+    const code = await (0, doctor_1.runDoctor)(['--offline'], stdout, stderr, {
+        HOME: tmp,
+        PERISCOPE_CONFIG: configPath,
+        nodeVersion: 'v20.0.0',
+        distDir,
+        repoRoot: tmp,
+        cacheDir,
+        fetchFn: shouldNotFetch,
+    });
+    // 关键断言：--offline 即便冷缓存也零 fetch。
+    assert.equal(fetchCalls, 0, '--offline 模式下不应调用 fetchFn');
+    assert.equal(code, 0);
+    // schema 项降级为 ⚠️ 并提示离线模式 + 跳过原因
+    assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
+    assert.match(stdout.data, /离线模式/);
+    // 其余 4 项本地自检不受 --offline 影响
+    const otherLines = stdout.data
+        .split('\n')
+        .filter((l) => l.includes('✅') &&
+        !l.startsWith('结论:') &&
+        !l.includes('根 plugin.json schema'));
+    assert.ok(otherLines.length >= 4, `--offline 不影响其余 4 项本地自检，实际：\n${stdout.data}`);
+    assert.match(stdout.data, /结论:\s*✅\s*全部通过/);
+    // 离线模式下输出不应出现 fetch/HTTP 等网络关键字
+    assert.doesNotMatch(stdout.data, /fetch|HTTP|ECONN|ENOTFOUND/i);
+});
+(0, node_test_1.test)('doctor --offline 命中缓存时使用本地缓存校验（fetchFn 不被调用）', async () => {
+    const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-cached-');
+    const configPath = writeFullConfig(tmp);
+    const distDir = tmpDist();
+    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
+    const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
+    seedSchemaCache(cacheDir, fixtures_1.PLUGIN_SCHEMA_1_0_0);
+    let fetchCalls = 0;
+    const shouldNotFetch = async () => {
+        fetchCalls += 1;
+        throw new Error('缓存命中时不应调用 fetchFn');
+    };
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
+    const code = await (0, doctor_1.runDoctor)(['--offline'], stdout, stderr, {
+        HOME: tmp,
+        PERISCOPE_CONFIG: configPath,
+        nodeVersion: 'v20.0.0',
+        distDir,
+        repoRoot: tmp,
+        cacheDir,
+        fetchFn: shouldNotFetch,
+    });
+    assert.equal(fetchCalls, 0, '缓存命中时不应调用 fetchFn');
+    assert.equal(code, 0);
+    // 缓存命中时仍走完整 schema 校验，不输出离线降级 ⚠️
+    assert.match(stdout.data, /✅ 根 plugin\.json schema/);
+    assert.match(stdout.data, /合规/);
+    assert.doesNotMatch(stdout.data, /离线模式/);
+});
+(0, node_test_1.test)('doctor --offline 与其余 4 项异常可同时报告（offline 不抑制本地检查）', async () => {
+    const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-multi-');
+    const configPath = path.join(tmp, 'absent.json'); // 故意不创建 → config ❌
+    const distDir = tmpDist(); // 空 dist → dist ❌
+    const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-'); // 冷缓存
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
+    const code = await (0, doctor_1.runDoctor)(['--offline'], stdout, stderr, {
+        HOME: tmp,
+        PERISCOPE_CONFIG: configPath,
+        nodeVersion: 'v18.0.0', // → Node ❌
+        distDir,
+        repoRoot: tmp,
+        cacheDir,
+        fetchFn: OFFLINE_FETCH,
+    });
+    assert.notEqual(code, 0);
+    // config + Node + dist 三项 ❌，schema 项 ⚠️（离线降级）
+    const fails = stdout.data
+        .split('\n')
+        .filter((l) => l.includes('❌') && !l.startsWith('结论:')).length;
+    assert.ok(fails >= 3, `--offline 不抑制本地 ❌ 项，实际 ${fails}：\n${stdout.data}`);
+    assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
+    assert.match(stdout.data, /离线模式/);
+});
+(0, node_test_1.test)('doctor --offline 紧贴其他参数也能识别（位置无关）', async () => {
+    const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-pos-');
+    const configPath = writeFullConfig(tmp);
+    const distDir = tmpDist();
+    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
+    let fetchCalls = 0;
+    const shouldNotFetch = async () => {
+        fetchCalls += 1;
+        throw new Error('should not fetch');
+    };
+    const stdout = new fixtures_1.StringWritable();
+    const code = await (0, doctor_1.runDoctor)(['--offline'], stdout, new fixtures_1.StringWritable(), {
+        HOME: tmp,
+        PERISCOPE_CONFIG: configPath,
+        nodeVersion: 'v20.0.0',
+        distDir,
+        repoRoot: tmp,
+        cacheDir,
+        fetchFn: shouldNotFetch,
+    });
+    assert.equal(code, 0);
+    assert.equal(fetchCalls, 0);
 });

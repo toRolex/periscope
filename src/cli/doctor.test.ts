@@ -2,19 +2,10 @@ import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Writable } from 'node:stream';
 import { DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
-import { makeTempDir, PLUGIN_SCHEMA_1_0_0 } from '../testing/fixtures';
+import { makeTempDir, PLUGIN_SCHEMA_1_0_0, StringWritable } from '../testing/fixtures';
 import { runDoctor } from './doctor';
 import { FetchLike } from './plugin-schema';
-
-class StringWritable extends Writable {
-  data = '';
-  _write(chunk: Buffer, _enc: string, cb: () => void): void {
-    this.data += chunk.toString('utf8');
-    cb();
-  }
-}
 
 /**
  * 找出 dist/ 目录：编译产物固定在 <rootDir>/dist。本测试的 distDir 直接指向仓库 dist。
@@ -462,4 +453,162 @@ test('doctor schema 获取失败（冷缓存）→ 该项 ⚠️ 降级 + 退出
   assert.equal(code, 0);
   assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
   assert.match(stdout.data, /获取失败/);
+});
+
+test('doctor --offline 冷缓存时零外部请求（fetchFn 不被调用） + schema 项 ⚠️', async () => {
+  const tmp = makeTempDir('periscope-doctor-offline-cold-');
+  const configPath = writeFullConfig(tmp);
+  const distDir = tmpDist();
+  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  // 不种子缓存 → 走冷缓存路径；--offline 必须拒绝调用 fetchFn
+  const cacheDir = makeTempDir('periscope-doctor-cache-');
+
+  let fetchCalls = 0;
+  const shouldNotFetch: FetchLike = async () => {
+    fetchCalls += 1;
+    throw new Error('--offline 模式下不应调用 fetchFn');
+  };
+
+  const stdout = new StringWritable();
+  const stderr = new StringWritable();
+  const code = await runDoctor(
+    ['--offline'],
+    stdout,
+    stderr,
+    {
+      HOME: tmp,
+      PERISCOPE_CONFIG: configPath,
+      nodeVersion: 'v20.0.0',
+      distDir,
+      repoRoot: tmp,
+      cacheDir,
+      fetchFn: shouldNotFetch,
+    },
+  );
+
+  // 关键断言：--offline 即便冷缓存也零 fetch。
+  assert.equal(fetchCalls, 0, '--offline 模式下不应调用 fetchFn');
+  assert.equal(code, 0);
+  // schema 项降级为 ⚠️ 并提示离线模式 + 跳过原因
+  assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
+  assert.match(stdout.data, /离线模式/);
+  // 其余 4 项本地自检不受 --offline 影响
+  const otherLines = stdout.data
+    .split('\n')
+    .filter(
+      (l) =>
+        l.includes('✅') &&
+        !l.startsWith('结论:') &&
+        !l.includes('根 plugin.json schema'),
+    );
+  assert.ok(otherLines.length >= 4, `--offline 不影响其余 4 项本地自检，实际：\n${stdout.data}`);
+  assert.match(stdout.data, /结论:\s*✅\s*全部通过/);
+  // 离线模式下输出不应出现 fetch/HTTP 等网络关键字
+  assert.doesNotMatch(stdout.data, /fetch|HTTP|ECONN|ENOTFOUND/i);
+});
+
+test('doctor --offline 命中缓存时使用本地缓存校验（fetchFn 不被调用）', async () => {
+  const tmp = makeTempDir('periscope-doctor-offline-cached-');
+  const configPath = writeFullConfig(tmp);
+  const distDir = tmpDist();
+  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
+  const cacheDir = makeTempDir('periscope-doctor-cache-');
+  seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
+
+  let fetchCalls = 0;
+  const shouldNotFetch: FetchLike = async () => {
+    fetchCalls += 1;
+    throw new Error('缓存命中时不应调用 fetchFn');
+  };
+
+  const stdout = new StringWritable();
+  const stderr = new StringWritable();
+  const code = await runDoctor(
+    ['--offline'],
+    stdout,
+    stderr,
+    {
+      HOME: tmp,
+      PERISCOPE_CONFIG: configPath,
+      nodeVersion: 'v20.0.0',
+      distDir,
+      repoRoot: tmp,
+      cacheDir,
+      fetchFn: shouldNotFetch,
+    },
+  );
+
+  assert.equal(fetchCalls, 0, '缓存命中时不应调用 fetchFn');
+  assert.equal(code, 0);
+  // 缓存命中时仍走完整 schema 校验，不输出离线降级 ⚠️
+  assert.match(stdout.data, /✅ 根 plugin\.json schema/);
+  assert.match(stdout.data, /合规/);
+  assert.doesNotMatch(stdout.data, /离线模式/);
+});
+
+test('doctor --offline 与其余 4 项异常可同时报告（offline 不抑制本地检查）', async () => {
+  const tmp = makeTempDir('periscope-doctor-offline-multi-');
+  const configPath = path.join(tmp, 'absent.json'); // 故意不创建 → config ❌
+  const distDir = tmpDist(); // 空 dist → dist ❌
+  const cacheDir = makeTempDir('periscope-doctor-cache-'); // 冷缓存
+
+  const stdout = new StringWritable();
+  const stderr = new StringWritable();
+  const code = await runDoctor(
+    ['--offline'],
+    stdout,
+    stderr,
+    {
+      HOME: tmp,
+      PERISCOPE_CONFIG: configPath,
+      nodeVersion: 'v18.0.0', // → Node ❌
+      distDir,
+      repoRoot: tmp,
+      cacheDir,
+      fetchFn: OFFLINE_FETCH,
+    },
+  );
+
+  assert.notEqual(code, 0);
+  // config + Node + dist 三项 ❌，schema 项 ⚠️（离线降级）
+  const fails = stdout.data
+    .split('\n')
+    .filter((l) => l.includes('❌') && !l.startsWith('结论:')).length;
+  assert.ok(fails >= 3, `--offline 不抑制本地 ❌ 项，实际 ${fails}：\n${stdout.data}`);
+  assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
+  assert.match(stdout.data, /离线模式/);
+});
+
+test('doctor --offline 紧贴其他参数也能识别（位置无关）', async () => {
+  const tmp = makeTempDir('periscope-doctor-offline-pos-');
+  const configPath = writeFullConfig(tmp);
+  const distDir = tmpDist();
+  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  const cacheDir = makeTempDir('periscope-doctor-cache-');
+
+  let fetchCalls = 0;
+  const shouldNotFetch: FetchLike = async () => {
+    fetchCalls += 1;
+    throw new Error('should not fetch');
+  };
+
+  const stdout = new StringWritable();
+  const code = await runDoctor(
+    ['--offline'],
+    stdout,
+    new StringWritable(),
+    {
+      HOME: tmp,
+      PERISCOPE_CONFIG: configPath,
+      nodeVersion: 'v20.0.0',
+      distDir,
+      repoRoot: tmp,
+      cacheDir,
+      fetchFn: shouldNotFetch,
+    },
+  );
+
+  assert.equal(code, 0);
+  assert.equal(fetchCalls, 0);
 });

@@ -4,6 +4,7 @@ exports.parseDescribeArgs = parseDescribeArgs;
 exports.describeUsage = describeUsage;
 exports.runDescribe = runDescribe;
 const describe_1 = require("../core/describe");
+const shared_1 = require("./shared");
 function parseDescribeArgs(argv) {
     const parsed = { imagePaths: [] };
     for (let i = 0; i < argv.length; i += 1) {
@@ -28,9 +29,6 @@ function parseDescribeArgs(argv) {
 function describeUsage() {
     return '用法: periscope describe <图片路径或URL> [...] [--intent "描述内容"]';
 }
-function errorMessage(err) {
-    return err instanceof Error ? err.message : String(err);
-}
 /**
  * `periscope describe` 命令：解析参数 → 调核心 → 描述输出到 stdout，报错走 stderr + 非零退出码。
  * stdout/stderr 可注入，便于测试直接调用。
@@ -41,7 +39,7 @@ async function runDescribe(argv, stdout, stderr) {
         parsed = parseDescribeArgs(argv);
     }
     catch (err) {
-        stderr.write(`错误: ${errorMessage(err)}\n`);
+        stderr.write(`错误: ${(0, shared_1.errorMessage)(err)}\n`);
         stderr.write(`${describeUsage()}\n`);
         return 1;
     }
@@ -78,7 +76,7 @@ async function runDescribe(argv, stdout, stderr) {
         return code;
     }
     catch (err) {
-        stderr.write(`错误: ${errorMessage(err)}\n`);
+        stderr.write(`错误: ${(0, shared_1.errorMessage)(err)}\n`);
         return 1;
     }
 }

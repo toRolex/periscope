@@ -1,7 +1,17 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Writable } from 'node:stream';
 import { DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
+
+/** 测试用 Writable：把所有写入的字节以 utf8 拼到 data。多个 CLI 测试需复用此 helper。 */
+export class StringWritable extends Writable {
+  data = '';
+  _write(chunk: Buffer, _enc: string, cb: () => void): void {
+    this.data += chunk.toString('utf8');
+    cb();
+  }
+}
 
 /** 1x1 透明 PNG（base64）。mock 端点不校验图片内容，用于测试 payload 的 data URL 构造。 */
 export const PNG_1PX_BASE64 =
