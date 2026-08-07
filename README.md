@@ -185,6 +185,25 @@ periscope describe https://example.com/diagram.png
    ```
 4. 发布前建议在干净环境（新 clone + 仅 `node`）实测「零构建即用」链路，避免漏提交 `dist/` 产物。
 
+## Agent Plugins 1.0.0 合规
+
+periscope 同时遵守 [Agent Plugins 1.0.0](https://agent-plugins.org) 标准（vercel + openai 联合发布的打包格式），被下列兼容 harness 作为标准插件目录加载：
+
+- **VS Code**
+- **ChatGPT / Codex**
+- **Kiro**
+- **GitHub Copilot**
+- **Cursor**
+
+> Claude Code **不在** Agent Plugins 兼容客户端列表里——它读自己的 `.claude-plugin/plugin.json` 与 `hooks/hooks.json`，不读根 `plugin.json`。两套结构互不冲突，Claude Code 体验不变。
+
+### 合规要点
+
+- **根 `plugin.json`**：仓库根的标准 manifest，包含 `$schema` / `name` / `version` / `description` / `author` 五字段，`name` 沿用 `periscope`。
+- **Skill 路径**：describe 能力以 `skills/describe-image/SKILL.md` 形式承载（frontmatter `name` / `description` / `allowed-tools` 已在 Agent Skills 规范字段表内，无需改动）。兼容 harness 的 agent 读到 Skill 后按指令调 `node dist/cli/index.js describe <图片路径或URL> [--intent "..."]`。
+- **不上 MCP server**：periscope **不**写 `mcp.json`、**不**把 describe 暴露为 MCP tool——避免在兼容 harness 工具列表里多一个 describe 噪音；视觉能力以 Skill 文本指令形式呈现。
+- **Claude Code 原生结构保留**：`.claude-plugin/plugin.json` + `hooks/hooks.json` + 现有 `skills/` 路径不动。
+
 ## 常见问题（FAQ）
 
 **Q：图片描述缓存存在哪里？怎么清除？**

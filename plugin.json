@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "periscope",
+  "version": "0.1.0",
+  "description": "给纯文本 coding agent 的视觉桥插件 —— 贴图自动注入文字描述",
+  "author": {
+    "name": "toRolex"
+  }
+}

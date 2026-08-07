@@ -94,3 +94,20 @@ function readme() {
     const md = readme();
     assert.match(md, /人工实测|实测指南/);
 });
+(0, node_test_1.test)('README 含「Agent Plugins 1.0.0 合规」说明段（issue #10 AC3）', () => {
+    const md = readme();
+    // 标题/章节存在
+    assert.match(md, /Agent Plugins 1\.0\.0/, 'README 应提及 Agent Plugins 1.0.0');
+    assert.match(md, /合规|兼容/);
+    // 兼容 harness 列表：五个客户端
+    assert.match(md, /VS Code/);
+    assert.match(md, /ChatGPT/);
+    assert.match(md, /Kiro/);
+    assert.match(md, /GitHub Copilot|Copilot/);
+    assert.match(md, /Cursor/);
+    // Skill 路径说明
+    assert.match(md, /skills\/(describe-image|<name>)/);
+    assert.match(md, /SKILL\.md/);
+    // 不上 MCP
+    assert.match(md, /不上 MCP|不暴露 MCP|不注册 MCP|不做 MCP|不做 MCP server|MCP server/);
+});
