@@ -46,7 +46,12 @@ const execFileP = (0, node_util_1.promisify)(node_child_process_1.execFile);
 /** 编译后测试位于 dist/cli/，CLI 入口即同目录的 index.js。 */
 const CLI_ENTRY = path.join(__dirname, 'index.js');
 function cliEnv(configPath) {
-    return (0, fixtures_1.makeTestEnv)(configPath, { apiKey: 'sk-cli', homePrefix: 'periscope-cli-home-' });
+    const env = (0, fixtures_1.makeTestEnv)(configPath, { apiKey: 'sk-cli', homePrefix: 'periscope-cli-home-' });
+    // 预置一份新鲜的 schema 缓存 → CLI doctor 的 schema 检查走缓存，不发起真实网络请求。
+    const cacheDir = path.join(env.HOME ?? '', '.cache', 'periscope');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(path.join(cacheDir, 'agent-plugins.schema.json'), JSON.stringify(fixtures_1.PLUGIN_SCHEMA_1_0_0, null, 2));
+    return { ...env, PERISCOPE_CACHE_DIR: cacheDir };
 }
 (0, node_test_1.test)('CLI describe 输出纯文本描述到 stdout 并以 0 退出', async (t) => {
     const server = await (0, mock_server_1.createMockServer)({
@@ -131,7 +136,7 @@ function cliEnv(configPath) {
     assert.notEqual(err.code, 0);
     assert.match(err.stderr, /用法/);
 });
-(0, node_test_1.test)('CLI doctor 子命令 → 全 OK 时 stdout 4 项 ✅ + 通过结论 + 退出码 0', async () => {
+(0, node_test_1.test)('CLI doctor 子命令 → 全 OK 时 stdout 5 项 ✅ + 通过结论 + 退出码 0', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = (0, fixtures_1.writeConfigFile)(dir).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
@@ -140,7 +145,7 @@ function cliEnv(configPath) {
     ], { env: cliEnv(configPath) });
     assert.equal(stderr, '');
     const okLines = stdout.split('\n').filter((l) => l.includes('✅') && !l.startsWith('结论:'));
-    assert.equal(okLines.length, 4, `应有 4 行 ✅，stdout：\n${stdout}`);
+    assert.equal(okLines.length, 5, `应有 5 行 ✅，stdout：\n${stdout}`);
     assert.match(stdout, /结论:\s*✅\s*全部通过/);
 });
 (0, node_test_1.test)('CLI doctor 子命令 → config 缺失时非零退出 + stdout 提示运行 init', async () => {

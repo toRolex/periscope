@@ -4,8 +4,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Writable } from 'node:stream';
 import { DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
-import { makeTempDir } from '../testing/fixtures';
+import { makeTempDir, PLUGIN_SCHEMA_1_0_0 } from '../testing/fixtures';
 import { runDoctor } from './doctor';
+import { FetchLike } from './plugin-schema';
 
 class StringWritable extends Writable {
   data = '';
@@ -41,6 +42,36 @@ function seedDist(distDir: string, files: string[]): void {
   }
 }
 
+/** 测试用 fetchFn：永远失败 → schema 项确定性地降级为 ⚠️，避免触碰真实网络。 */
+const OFFLINE_FETCH: FetchLike = async () => {
+  throw new Error('offline');
+};
+
+/** 合规模板：与真实根 plugin.json（#10 产出）同形。 */
+const VALID_PLUGIN_MANIFEST: Record<string, unknown> = {
+  $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+  name: 'periscope',
+  version: '0.1.0',
+  description: '给纯文本 coding agent 的视觉桥插件',
+  author: { name: 'toRolex' },
+};
+
+/** 在 cacheDir 下写入一份新鲜的 schema 缓存。 */
+function seedSchemaCache(cacheDir: string, schema: Record<string, unknown>): void {
+  fs.mkdirSync(cacheDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(cacheDir, 'agent-plugins.schema.json'),
+    JSON.stringify(schema, null, 2),
+  );
+}
+
+/** 在 dir 下写入 plugin.json，返回路径。 */
+function writePluginJson(dir: string, manifest: Record<string, unknown>): string {
+  const filePath = path.join(dir, 'plugin.json');
+  fs.writeFileSync(filePath, JSON.stringify(manifest, null, 2));
+  return filePath;
+}
+
 test('doctor 全部检查通过 → stdout 含 4 行 ✅ + 一行通过结论 + 退出码 0', async () => {
   const tmp = makeTempDir('periscope-doctor-happy-');
   const configPath = writeFullConfig(tmp);
@@ -59,6 +90,8 @@ test('doctor 全部检查通过 → stdout 含 4 行 ✅ + 一行通过结论 + 
       nodeVersion: 'v20.0.0',
       distDir,
       repoRoot: tmp, // dummy
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -91,6 +124,8 @@ test('doctor config 文件缺失 → 该项 ❌ + 结论列出问题 + 退出码
       nodeVersion: 'v20.0.0',
       distDir,
       repoRoot: tmp,
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -128,6 +163,8 @@ test('doctor config 缺少 openai 协议段 → openai 协议段检查 ❌ + 列
       nodeVersion: 'v20.0.0',
       distDir,
       repoRoot: tmp,
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -161,6 +198,8 @@ test('doctor config 缺少 anthropic 协议段 → 该项 ❌', async () => {
       nodeVersion: 'v20.0.0',
       distDir,
       repoRoot: tmp,
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -193,6 +232,8 @@ test('doctor config 缺少 responses 协议段 → 该项 ❌', async () => {
       nodeVersion: 'v20.0.0',
       distDir,
       repoRoot: tmp,
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -218,6 +259,8 @@ test('doctor Node 版本低于 engines.node 下限 → 该项 ❌ + 结论非零
       nodeVersion: 'v18.0.0', // 低于 >=20
       distDir,
       repoRoot: tmp,
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -245,6 +288,8 @@ test('doctor dist/ 缺少 cli/index.js → 该项 ❌（提示需要 npm run bui
       nodeVersion: 'v20.0.0',
       distDir,
       repoRoot: tmp,
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -270,6 +315,8 @@ test('doctor 多项同时异常 → 结论列出总项数（每条异常贡献�
       nodeVersion: 'v18.0.0',
       distDir,
       repoRoot: tmp,
+      cacheDir: makeTempDir('periscope-doctor-cache-'),
+      fetchFn: OFFLINE_FETCH,
     },
   );
 
@@ -282,14 +329,21 @@ test('doctor 多项同时异常 → 结论列出总项数（每条异常贡献�
   assert.match(stdout.data, /结论:\s*❌\s*(\d+)\s*项异常/);
 });
 
-test('doctor 全程不发起任何外部网络请求（通过 absent HTTP 端点保证）', async () => {
+test('doctor 命中 schema 缓存时全程零外部请求（fetchFn 不被调用）', async () => {
   const tmp = makeTempDir('periscope-doctor-net-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
   seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
+  const cacheDir = makeTempDir('periscope-doctor-cache-');
+  seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
 
-  // 故意把 baseUrl 指向一个不存在的端点；如果 doctor 不小心发起请求，fetch 会失败/超时，
-  // 但因为我们只看输出，本测试更直接地：跑完 doctor 后 config 文件未变、dist 未变。
+  let fetchCalls = 0;
+  const recordingFetch: FetchLike = async () => {
+    fetchCalls += 1;
+    throw new Error('schema 缓存命中时不应发起外部请求');
+  };
+
   const stdout = new StringWritable();
   const stderr = new StringWritable();
   const code = await runDoctor(
@@ -302,12 +356,110 @@ test('doctor 全程不发起任何外部网络请求（通过 absent HTTP 端点
       nodeVersion: 'v20.0.0',
       distDir,
       repoRoot: tmp,
+      cacheDir,
+      fetchFn: recordingFetch,
     },
   );
 
-  // 行为约束：doctor 是纯本地的；不能因为端点连不上而退出非零。
+  // 行为约束：doctor 在 schema 缓存命中时不发起任何外部网络请求。
   assert.equal(code, 0);
-  // 此外：doctor 输出不应出现任何 HTTP / fetch / timeout 关键字。
+  assert.equal(fetchCalls, 0, 'schema 缓存命中时不应调用 fetchFn');
+  // doctor 输出不应出现任何 HTTP / fetch / timeout 关键字。
   assert.doesNotMatch(stdout.data, /fetch|HTTP|timeout|ECONN|ENOTFOUND/i);
   assert.doesNotMatch(stderr.data, /fetch|HTTP|timeout|ECONN|ENOTFOUND/i);
+});
+
+test('doctor 根 plugin.json 合规（schema 来源: 本地缓存）→ 该项 ✅ + 退出码 0', async () => {
+  const tmp = makeTempDir('periscope-doctor-schema-ok-');
+  const configPath = writeFullConfig(tmp);
+  const distDir = tmpDist();
+  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
+  const cacheDir = makeTempDir('periscope-doctor-cache-');
+  seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
+
+  const stdout = new StringWritable();
+  const stderr = new StringWritable();
+  const code = await runDoctor(
+    [],
+    stdout,
+    stderr,
+    {
+      HOME: tmp,
+      PERISCOPE_CONFIG: configPath,
+      nodeVersion: 'v20.0.0',
+      distDir,
+      repoRoot: tmp,
+      cacheDir,
+      fetchFn: OFFLINE_FETCH,
+    },
+  );
+
+  assert.equal(code, 0);
+  assert.match(stdout.data, /✅ 根 plugin\.json schema/);
+  assert.match(stdout.data, /合规/);
+  assert.match(stdout.data, /schema 来源: 本地缓存/);
+});
+
+test('doctor 根 plugin.json 不合规（name 大写）→ 该项 ❌ + 来源提示 + 退出码非零', async () => {
+  const tmp = makeTempDir('periscope-doctor-schema-bad-');
+  const configPath = writeFullConfig(tmp);
+  const distDir = tmpDist();
+  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  writePluginJson(tmp, { ...VALID_PLUGIN_MANIFEST, name: 'Periscope' });
+  const cacheDir = makeTempDir('periscope-doctor-cache-');
+  seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
+
+  const stdout = new StringWritable();
+  const stderr = new StringWritable();
+  const code = await runDoctor(
+    [],
+    stdout,
+    stderr,
+    {
+      HOME: tmp,
+      PERISCOPE_CONFIG: configPath,
+      nodeVersion: 'v20.0.0',
+      distDir,
+      repoRoot: tmp,
+      cacheDir,
+      fetchFn: OFFLINE_FETCH,
+    },
+  );
+
+  assert.notEqual(code, 0);
+  assert.match(stdout.data, /❌ 根 plugin\.json schema/);
+  assert.match(stdout.data, /不合规/);
+  assert.match(stdout.data, /\$\.name/); // 来源提示：定位到出错字段
+  assert.match(stdout.data, /schema 来源: 本地缓存/);
+});
+
+test('doctor schema 获取失败（冷缓存）→ 该项 ⚠️ 降级 + 退出码 0', async () => {
+  const tmp = makeTempDir('periscope-doctor-schema-degraded-');
+  const configPath = writeFullConfig(tmp);
+  const distDir = tmpDist();
+  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  // 不写 plugin.json、不种子缓存 → 冷缓存，fetchFn 抛错 → 降级 ⚠️
+  const cacheDir = makeTempDir('periscope-doctor-cache-');
+
+  const stdout = new StringWritable();
+  const stderr = new StringWritable();
+  const code = await runDoctor(
+    [],
+    stdout,
+    stderr,
+    {
+      HOME: tmp,
+      PERISCOPE_CONFIG: configPath,
+      nodeVersion: 'v20.0.0',
+      distDir,
+      repoRoot: tmp,
+      cacheDir,
+      fetchFn: OFFLINE_FETCH,
+    },
+  );
+
+  assert.equal(code, 0);
+  assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
+  assert.match(stdout.data, /获取失败/);
 });
