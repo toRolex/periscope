@@ -30,6 +30,48 @@ function tmpEnv(): Record<string, string> {
   };
 }
 
+test('init 按一问一答顺序交互：每个提示出现后才提供对应输入', async () => {
+  const dir = makeTempDir('periscope-init-interactive-');
+  const configPath = path.join(dir, 'config.json');
+  const stdin = new Readable({ read() {} });
+  const events: string[] = [];
+  const answers = new Map<string, string>([
+    ['选择协议 (openai/anthropic/responses): ', 'openai'],
+    ['openai baseUrl: ', 'https://interactive.example.com/v1'],
+    ['openai model: ', 'interactive-model'],
+    ['apiKey (可空): ', 'sk-interactive'],
+  ]);
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      const text = chunk.toString('utf8');
+      const answer = answers.get(text);
+      if (answer !== undefined) {
+        events.push(`提示:${text}`, `输入:${answer}`);
+        stdin.push(`${answer}\n`);
+        if (text === 'apiKey (可空): ') stdin.push(null);
+      }
+      callback();
+    },
+  });
+  const stderr = new StringWritable();
+  const eofFallback = setTimeout(() => stdin.push(null), 50);
+
+  const code = await runInit([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
+  clearTimeout(eofFallback);
+
+  assert.equal(code, 0, stderr.data);
+  assert.deepEqual(events, [
+    '提示:选择协议 (openai/anthropic/responses): ',
+    '输入:openai',
+    '提示:openai baseUrl: ',
+    '输入:https://interactive.example.com/v1',
+    '提示:openai model: ',
+    '输入:interactive-model',
+    '提示:apiKey (可空): ',
+    '输入:sk-interactive',
+  ]);
+});
+
 test('init 通过 stdin 接收选择题 → 写出完整 config.json（结构与 DEFAULT_CONFIG 一致）', async () => {
   const dir = makeTempDir('periscope-init-out-');
   const configPath = path.join(dir, 'config.json');
