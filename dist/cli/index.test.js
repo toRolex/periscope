@@ -159,17 +159,38 @@ function cliEnv(configPath) {
     assert.match(err.stdout, /配置文件/);
     assert.match(err.stdout, /periscope init/);
 });
+(0, node_test_1.test)('CLI doctor --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（不发起外部请求）', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = (0, fixtures_1.writeConfigFile)(dir).path;
+    // 不种子缓存：构造一个隔离的 HOME，且不预置 schema 缓存 → 冷缓存
+    const isolatedHome = (0, fixtures_1.makeTempDir)('periscope-cli-offline-');
+    const env = {
+        ...cliEnv(configPath),
+        HOME: isolatedHome, // 覆盖预置 schema 缓存用的 HOME
+    };
+    delete env.PERISCOPE_CACHE_DIR;
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'doctor',
+        '--offline',
+    ], { env: env });
+    assert.equal(stderr, '');
+    // 4 项本地 ✅ + schema ⚠️ 离线降级（不输出 fetch/HTTP 等网络关键字）
+    assert.doesNotMatch(stdout, /fetch|HTTP|timeout|ECONN|ENOTFOUND/i);
+    assert.match(stdout, /离线模式/);
+    assert.match(stdout, /⚠️ 根 plugin\.json schema/);
+});
 (0, node_test_1.test)('CLI init 子命令：目标配置已存在 → 拒绝 + 非零退出码（fork 端到端）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = (0, fixtures_1.writeConfigFile)(dir, { apiKey: 'preserved-key' }).path;
-    const originalContent = require('node:fs').readFileSync(configPath, 'utf8');
+    const originalContent = fs.readFileSync(configPath).toString('utf8');
     const err = await execFileP(process.execPath, [CLI_ENTRY, 'init'], {
         env: cliEnv(configPath),
         input: 'openai\nhttps://x\nm\nk',
     }).catch((e) => e);
     assert.notEqual(err.code, 0);
     assert.match(err.stderr, /已存在/);
-    const afterContent = require('node:fs').readFileSync(configPath, 'utf8');
+    const afterContent = fs.readFileSync(configPath).toString('utf8');
     assert.equal(afterContent, originalContent, 'fork 模式下已存在文件字节不变');
 });
 (0, node_test_1.test)('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {

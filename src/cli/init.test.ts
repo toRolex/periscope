@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import { DEFAULT_CONFIG } from '../config/config';
-import { makeTempDir } from '../testing/fixtures';
+import { makeTempDir, StringWritable } from '../testing/fixtures';
 import { runInit } from './init';
 
 function mockStdin(lines: string[]): Readable {
@@ -14,14 +14,6 @@ function mockStdin(lines: string[]): Readable {
   }
   r.push(null);
   return r;
-}
-
-class StringWritable extends Writable {
-  data = '';
-  _write(chunk: Buffer, _enc: string, cb: () => void): void {
-    this.data += chunk.toString('utf8');
-    cb();
-  }
 }
 
 function tmpEnv(): Record<string, string> {

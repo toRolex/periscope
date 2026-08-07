@@ -161,10 +161,34 @@ test('CLI doctor 子命令 → config 缺失时非零退出 + stdout 提示运�
   assert.match(err.stdout, /periscope init/);
 });
 
+test('CLI doctor --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（不发起外部请求）', async () => {
+  const dir = makeTempDir();
+  const configPath = writeConfigFile(dir).path;
+  // 不种子缓存：构造一个隔离的 HOME，且不预置 schema 缓存 → 冷缓存
+  const isolatedHome = makeTempDir('periscope-cli-offline-');
+  const env = {
+    ...cliEnv(configPath),
+    HOME: isolatedHome, // 覆盖预置 schema 缓存用的 HOME
+  };
+  delete (env as Record<string, string | undefined>).PERISCOPE_CACHE_DIR;
+
+  const { stdout, stderr } = await execFileP(process.execPath, [
+    CLI_ENTRY,
+    'doctor',
+    '--offline',
+  ], { env: env as Record<string, string | undefined> });
+
+  assert.equal(stderr, '');
+  // 4 项本地 ✅ + schema ⚠️ 离线降级（不输出 fetch/HTTP 等网络关键字）
+  assert.doesNotMatch(stdout, /fetch|HTTP|timeout|ECONN|ENOTFOUND/i);
+  assert.match(stdout, /离线模式/);
+  assert.match(stdout, /⚠️ 根 plugin\.json schema/);
+});
+
 test('CLI init 子命令：目标配置已存在 → 拒绝 + 非零退出码（fork 端到端）', async () => {
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir, { apiKey: 'preserved-key' }).path;
-  const originalContent = require('node:fs').readFileSync(configPath, 'utf8');
+  const originalContent = fs.readFileSync(configPath).toString('utf8');
 
   const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'init'], {
     env: cliEnv(configPath),
@@ -173,7 +197,7 @@ test('CLI init 子命令：目标配置已存在 → 拒绝 + 非零退出码（
 
   assert.notEqual(err.code, 0);
   assert.match(err.stderr, /已存在/);
-  const afterContent = require('node:fs').readFileSync(configPath, 'utf8');
+  const afterContent = fs.readFileSync(configPath).toString('utf8');
   assert.equal(afterContent, originalContent, 'fork 模式下已存在文件字节不变');
 });
 

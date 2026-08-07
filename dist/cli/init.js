@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runInit = runInit;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
+const readline = __importStar(require("node:readline"));
 const config_1 = require("../config/config");
 const PROTOCOLS = ['openai', 'anthropic', 'responses'];
 function defaultConfigPathForEnv(env) {
@@ -49,32 +50,6 @@ function protocolValidator() {
     return (v) => PROTOCOLS.includes(v) ? null : `协议必须是 openai/anthropic/responses 之一`;
 }
 /**
- * 把整个 Readable 流读完，按 '\n' 切成行（strip '\r'）。
- * - 支持同步 push 后 attach 监听（用 readable 兜底消费）；
- * - 全部读完后才 resolve，避免重复 attach 监听导致 'end' 漏触发；
- * - 空流 → resolve 空数组（上层把后续 readLine 视为 EOF）。
- */
-function readAllLines(stream) {
-    return new Promise((resolve) => {
-        let buf = '';
-        stream.on('data', (chunk) => {
-            buf += chunk.toString('utf8');
-        });
-        stream.on('end', () => {
-            const lines = buf.length === 0 ? [] : buf.split('\n').map((l) => l.replace(/\r$/, ''));
-            resolve(lines);
-        });
-        stream.on('readable', () => {
-            let chunk = stream.read();
-            while (chunk !== null) {
-                buf += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
-                chunk = stream.read();
-            }
-        });
-        stream.read();
-    });
-}
-/**
  * periscope init：以选择题方式引导用户完成配置，写到默认路径。
  * 目标文件已存在 → 拒绝覆盖（避免误删 API key）。
  * stdin/stdout/stderr/env 全部可注入，便于测试直接调函数而非 fork 子进程。
@@ -86,17 +61,16 @@ async function runInit(_argv, stdin, stdout, stderr, env) {
         stderr.write('提示: 如需重新生成，请先手动删除该文件再运行 periscope init\n');
         return 1;
     }
-    // 一次性读完 stdin，避免多次 readLine 时 'end' 不重发的陷阱
-    const lines = await readAllLines(stdin);
-    let cursor = 0;
-    const nextLine = () => (cursor < lines.length ? lines[cursor++] : null);
-    const ask = (question, validate) => {
+    const input = readline.createInterface({ input: stdin, crlfDelay: Infinity });
+    const lines = input[Symbol.asyncIterator]();
+    const ask = async (question, validate) => {
         stdout.write(question);
-        const line = nextLine();
-        if (line === null) {
+        const result = await lines.next();
+        if (result.done) {
             stderr.write('错误: 输入流提前结束（EOF）\n');
             return null;
         }
+        const line = result.value;
         const err = validate(line);
         if (err !== null) {
             stderr.write(`错误: ${err}\n`);
@@ -104,16 +78,16 @@ async function runInit(_argv, stdin, stdout, stderr, env) {
         }
         return line;
     };
-    const protocol = ask(`选择协议 (openai/anthropic/responses): `, protocolValidator());
+    const protocol = await ask(`选择协议 (openai/anthropic/responses): `, protocolValidator());
     if (protocol === null)
         return 1;
-    const baseUrl = ask(`${protocol} baseUrl: `, nonEmptyValidator('baseUrl'));
+    const baseUrl = await ask(`${protocol} baseUrl: `, nonEmptyValidator('baseUrl'));
     if (baseUrl === null)
         return 1;
-    const model = ask(`${protocol} model: `, nonEmptyValidator('model'));
+    const model = await ask(`${protocol} model: `, nonEmptyValidator('model'));
     if (model === null)
         return 1;
-    const apiKey = ask(`apiKey (可空): `, () => null);
+    const apiKey = await ask(`apiKey (可空): `, () => null);
     if (apiKey === null)
         return 1;
     const userProtocol = protocol;

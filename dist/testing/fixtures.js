@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PLUGIN_SCHEMA_1_0_0 = exports.PNG_1PX_BASE64 = void 0;
+exports.PLUGIN_SCHEMA_1_0_0 = exports.PNG_1PX_BASE64 = exports.StringWritable = void 0;
 exports.makeTempDir = makeTempDir;
 exports.writeFixtureImage = writeFixtureImage;
 exports.writeConfigFile = writeConfigFile;
@@ -42,7 +42,17 @@ exports.makeTestEnv = makeTestEnv;
 const fs = __importStar(require("node:fs"));
 const os = __importStar(require("node:os"));
 const path = __importStar(require("node:path"));
+const node_stream_1 = require("node:stream");
 const config_1 = require("../config/config");
+/** 测试用 Writable：把所有写入的字节以 utf8 拼到 data。多个 CLI 测试需复用此 helper。 */
+class StringWritable extends node_stream_1.Writable {
+    data = '';
+    _write(chunk, _enc, cb) {
+        this.data += chunk.toString('utf8');
+        cb();
+    }
+}
+exports.StringWritable = StringWritable;
 /** 1x1 透明 PNG（base64）。mock 端点不校验图片内容，用于测试 payload 的 data URL 构造。 */
 exports.PNG_1PX_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 function makeTempDir(prefix = 'periscope-test-') {

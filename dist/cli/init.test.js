@@ -49,24 +49,57 @@ function mockStdin(lines) {
     r.push(null);
     return r;
 }
-class StringWritable extends node_stream_1.Writable {
-    data = '';
-    _write(chunk, _enc, cb) {
-        this.data += chunk.toString('utf8');
-        cb();
-    }
-}
 function tmpEnv() {
     return {
         HOME: (0, fixtures_1.makeTempDir)('periscope-init-home-'),
     };
 }
+(0, node_test_1.test)('init 按一问一答顺序交互：每个提示出现后才提供对应输入', async () => {
+    const dir = (0, fixtures_1.makeTempDir)('periscope-init-interactive-');
+    const configPath = path.join(dir, 'config.json');
+    const stdin = new node_stream_1.Readable({ read() { } });
+    const events = [];
+    const answers = new Map([
+        ['选择协议 (openai/anthropic/responses): ', 'openai'],
+        ['openai baseUrl: ', 'https://interactive.example.com/v1'],
+        ['openai model: ', 'interactive-model'],
+        ['apiKey (可空): ', 'sk-interactive'],
+    ]);
+    const stdout = new node_stream_1.Writable({
+        write(chunk, _encoding, callback) {
+            const text = chunk.toString('utf8');
+            const answer = answers.get(text);
+            if (answer !== undefined) {
+                events.push(`提示:${text}`, `输入:${answer}`);
+                stdin.push(`${answer}\n`);
+                if (text === 'apiKey (可空): ')
+                    stdin.push(null);
+            }
+            callback();
+        },
+    });
+    const stderr = new fixtures_1.StringWritable();
+    const eofFallback = setTimeout(() => stdin.push(null), 50);
+    const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
+    clearTimeout(eofFallback);
+    assert.equal(code, 0, stderr.data);
+    assert.deepEqual(events, [
+        '提示:选择协议 (openai/anthropic/responses): ',
+        '输入:openai',
+        '提示:openai baseUrl: ',
+        '输入:https://interactive.example.com/v1',
+        '提示:openai model: ',
+        '输入:interactive-model',
+        '提示:apiKey (可空): ',
+        '输入:sk-interactive',
+    ]);
+});
 (0, node_test_1.test)('init 通过 stdin 接收选择题 → 写出完整 config.json（结构与 DEFAULT_CONFIG 一致）', async () => {
     const dir = (0, fixtures_1.makeTempDir)('periscope-init-out-');
     const configPath = path.join(dir, 'config.json');
     const stdin = mockStdin(['openai', 'https://my.example.com/v1', 'my-model', 'sk-test-key']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
     assert.equal(code, 0);
     assert.ok(fs.existsSync(configPath), '配置文件应被写出');
@@ -84,8 +117,8 @@ function tmpEnv() {
     const dir = (0, fixtures_1.makeTempDir)('periscope-init-out-');
     const configPath = path.join(dir, 'config.json');
     const stdin = mockStdin(['anthropic', 'https://api.anthropic.com', 'claude-3-5-sonnet-latest', 'sk-anthropic']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
     assert.equal(code, 0);
     const written = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
@@ -101,8 +134,8 @@ function tmpEnv() {
     const originalContent = JSON.stringify({ ...config_1.DEFAULT_CONFIG, apiKey: 'preserved-key' }, null, 2);
     fs.writeFileSync(configPath, originalContent);
     const stdin = mockStdin(['openai', 'https://x', 'm', 'k']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
     assert.notEqual(code, 0);
     assert.match(stderr.data, /已存在/);
@@ -115,8 +148,8 @@ function tmpEnv() {
     const dir = (0, fixtures_1.makeTempDir)('periscope-init-eof-');
     const configPath = path.join(dir, 'config.json');
     const stdin = mockStdin([]);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
     assert.notEqual(code, 0);
     assert.ok(stderr.data.length > 0, 'EOF 时应输出错误信息');
@@ -126,8 +159,8 @@ function tmpEnv() {
     const dir = (0, fixtures_1.makeTempDir)('periscope-init-bad-proto-');
     const configPath = path.join(dir, 'config.json');
     const stdin = mockStdin(['bogus']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
     assert.notEqual(code, 0);
     assert.ok(!fs.existsSync(configPath), '协议无效时不应写出配置文件');
@@ -136,8 +169,8 @@ function tmpEnv() {
     const dir = (0, fixtures_1.makeTempDir)('periscope-init-shape-');
     const configPath = path.join(dir, 'config.json');
     const stdin = mockStdin(['responses', 'https://api.openai.com/v1', 'gpt-4o-mini', 'sk-r']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
     assert.equal(code, 0);
     const written = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
@@ -149,8 +182,8 @@ function tmpEnv() {
     const home = (0, fixtures_1.makeTempDir)('periscope-init-homeonly-');
     const expected = path.join(home, '.config', 'periscope', 'config.json');
     const stdin = mockStdin(['openai', 'https://x', 'm', 'k']);
-    const stdout = new StringWritable();
-    const stderr = new StringWritable();
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
     const code = await (0, init_1.runInit)([], stdin, stdout, stderr, { HOME: home });
     assert.equal(code, 0);
     assert.ok(fs.existsSync(expected), `应写入 HOME 派生路径: ${expected}`);

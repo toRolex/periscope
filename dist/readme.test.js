@@ -74,6 +74,24 @@ function readme() {
     assert.match(md, /--intent/);
     assert.match(md, /URL/);
 });
+(0, node_test_1.test)('README 说明 init 子命令（交互式 / 拒绝覆盖 / 无 --force）', () => {
+    const md = readme();
+    assert.match(md, /periscope init/);
+    assert.match(md, /拒绝覆盖|已存在/);
+    assert.match(md, /没有 `--force`|无 --force|--force.*(不支持|未提供|没有)/);
+});
+(0, node_test_1.test)('README 说明 doctor 子命令（5 项本地自检 / --offline 语义）', () => {
+    const md = readme();
+    assert.match(md, /periscope doctor/);
+    assert.match(md, /--offline/);
+    assert.match(md, /离线模式/);
+    // 五项自检都提到
+    assert.match(md, /config 文件|配置文件/);
+    assert.match(md, /协议段/);
+    assert.match(md, /Node 版本/);
+    assert.match(md, /dist\//);
+    assert.match(md, /plugin\.json.*schema|schema.*plugin\.json/);
+});
 (0, node_test_1.test)('README 说明 hook 贴图注入与放行语义', () => {
     const md = readme();
     assert.match(md, /UserPromptSubmit/);

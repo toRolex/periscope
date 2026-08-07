@@ -86,6 +86,8 @@ periscope describe ./demo.png
 
 ## CLI 用法
 
+### `describe` — 描述图片
+
 ```
 periscope describe <图片路径或URL> [...] [--intent "描述内容"]
 ```
@@ -93,6 +95,54 @@ periscope describe <图片路径或URL> [...] [--intent "描述内容"]
 - `<图片路径或URL>`：本地图片路径或 `http(s)` 图片 URL，可传多个，空格分隔。
 - `--intent "..."`（可选）：描述意图，如 `"读取图片中的文字"`、`"解析图表"`。
 - 直接运行编译产物：`node dist/cli/index.js describe <图片路径或URL> [...]`（插件环境里是 `node ${CLAUDE_PLUGIN_ROOT}/dist/cli/index.js ...`）。
+
+### `init` — 交互式初始化配置
+
+```
+periscope init
+```
+
+通过 stdin 一问一答引导用户完成配置：选择协议（`openai` / `anthropic` / `responses`）→ 填 `baseUrl` → 填 `model` → 填 `apiKey`（可空），最后写出到默认配置路径（`PERISCOPE_CONFIG` 优先，否则 `~/.config/periscope/config.json`）。
+
+行为要点：
+
+- **目标文件已存在则拒绝覆盖**（避免误删 API key），stderr 报错 + 非零退出码。需重新生成请先手动删除该文件再运行 `periscope init`。**没有 `--force` 选项**——强制覆盖必须用户自己操作文件。
+- 任一回答 EOF 或校验失败立即终止，非零退出码。
+- 写出的 JSON 包含 `protocol` / `apiKey` / `openai` / `anthropic` / `responses` 顶层字段；用户选中的协议段 `baseUrl` / `model` 取用户输入，其余协议段保留 DEFAULT_CONFIG 的端点。
+
+```bash
+# 典型使用：装好插件后首次跑
+periscope init
+# 提示: 选择协议 (openai/anthropic/responses): openai
+# 提示: openai baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+# 提示: openai model: qwen-vl-max
+# 提示: apiKey (可空): sk-xxx
+# stdout: 已写入配置: /Users/you/.config/periscope/config.json
+```
+
+### `doctor` — 本地自检
+
+```
+periscope doctor [--offline]
+```
+
+五项自检，全部纯本地（`--offline` 时连 schema 网络拉取也禁用）：
+
+1. **config 文件**：检查默认路径（`PERISCOPE_CONFIG` / `~/.config/periscope/config.json`）文件存在性。
+2. **协议段**：检查 `config.json` 的 `openai` / `anthropic` / `responses` 段都有 `baseUrl` + `model`。
+3. **Node 版本**：与仓库 `package.json` 的 `engines.node` 比较（默认 `>=20`）。
+4. **dist/ 编译产物**：检查 `dist/cli/index.js` + `dist/core/describe.js` 存在（零构建即用假设）。
+5. **根 `plugin.json` schema 合规**：按 [Agent Plugins 1.0.0](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json) 校验仓库根 `plugin.json`。
+
+逐项输出 `✅ / ⚠️ / ❌` + 一行结论；`❌` 项数 = 退出码是否为零。
+
+**`--offline` 标志语义**：禁止 schema 项发起任何外部网络请求（满足 issue #12「全程不发请求」的承诺）。
+
+- 缓存有效（7 天 TTL 内）→ 用本地缓存校验，输出 `✅ 根 plugin.json schema 合规（schema 来源: 本地缓存）`。
+- 缓存缺失或过期 → 降级 `⚠️ 离线模式：schema 未缓存，跳过校验（可先联网跑一次 doctor 预热缓存）`，**不发任何 fetch**。
+- 其余 4 项本地自检不受 `--offline` 影响，仍照常输出。
+
+**默认行为（不传 `--offline`）**：冷缓存时 schema 项会拉一次远程 schema（成功后续命中本地缓存 7 天）；拉取失败降级 `⚠️`，不硬失败。
 
 ### 输出与退出码
 

@@ -33,11 +33,26 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseDoctorArgs = parseDoctorArgs;
 exports.runDoctor = runDoctor;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const cache_1 = require("../cache");
 const plugin_schema_1 = require("./plugin-schema");
+/** 解析 doctor 命令行参数。支持 `--offline`（位置无关）。 */
+function parseDoctorArgs(argv) {
+    let offline = false;
+    const rest = [];
+    for (const arg of argv) {
+        if (arg === '--offline') {
+            offline = true;
+        }
+        else {
+            rest.push(arg);
+        }
+    }
+    return { offline, rest };
+}
 const REQUIRED_PROTOCOLS = ['openai', 'anthropic', 'responses'];
 const REQUIRED_DIST_FILES = ['cli/index.js', 'core/describe.js'];
 /** 从 `vX.Y.Z` 解析 major；非匹配返回 0。 */
@@ -127,12 +142,24 @@ function checkDist(distDir) {
 /**
  * 根 plugin.json schema 合规检查（issue #13）：
  * 按 Agent Plugins 1.0.0 schema 校验仓库根 plugin.json。
- * - schema 获取失败（本地无新鲜缓存 + 远程拉取失败）→ 降级 ⚠️，不硬失败
+ * - 默认行为：缓存命中读缓存，否则 fetch 远程；获取失败 → 降级 ⚠️
+ * - 离线模式（offline=true）：即便冷缓存也**绝不调用 fetchFn**；无新鲜缓存 → 降级 ⚠️ 提示离线
  * - plugin.json 不存在或 JSON 非法 → ❌
  * - 校验不合规 → ❌ + 来源提示（JSON path 定位出错字段）
  * 输出带 schema 来源（本地缓存 / 远程），供用户判断权威性。
  */
-async function checkPluginSchema(pluginJsonPath, cacheDir, fetchFn) {
+async function checkPluginSchema(pluginJsonPath, cacheDir, fetchFn, offline) {
+    // 离线模式优先判断：缓存新鲜 → 直接用；否则降级 ⚠️ 且不发请求。
+    if (offline) {
+        const cachePath = (0, plugin_schema_1.pluginSchemaCachePath)(cacheDir);
+        if ((0, plugin_schema_1.isSchemaCacheFresh)(cachePath)) {
+            return validateManifestWithCachedSchema(pluginJsonPath, cachePath);
+        }
+        return {
+            status: 'warn',
+            detail: '离线模式：schema 未缓存，跳过校验（可先联网跑一次 doctor 预热缓存）',
+        };
+    }
     let loaded;
     try {
         loaded = await (0, plugin_schema_1.loadPluginSchema)(cacheDir, fetchFn);
@@ -140,6 +167,22 @@ async function checkPluginSchema(pluginJsonPath, cacheDir, fetchFn) {
     catch {
         return { status: 'warn', detail: 'schema 获取失败，跳过根 plugin.json 合规校验' };
     }
+    return validateManifestAgainstSchema(pluginJsonPath, loaded.schema, loaded.source);
+}
+/** 离线模式下，从缓存路径直接读 schema 并校验根 manifest。 */
+function validateManifestWithCachedSchema(pluginJsonPath, cachePath) {
+    let schema;
+    try {
+        schema = JSON.parse(fs.readFileSync(cachePath).toString('utf8'));
+    }
+    catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        return { status: 'warn', detail: `离线模式：缓存 schema 解析失败 (${reason})` };
+    }
+    return validateManifestAgainstSchema(pluginJsonPath, schema, 'cache');
+}
+/** 校验根 plugin.json 并产出带 schema 来源的 CheckResult。 */
+function validateManifestAgainstSchema(pluginJsonPath, schema, source) {
     if (!fs.existsSync(pluginJsonPath)) {
         return { status: 'fail', detail: `根 plugin.json 不存在: ${pluginJsonPath}` };
     }
@@ -151,15 +194,15 @@ async function checkPluginSchema(pluginJsonPath, cacheDir, fetchFn) {
         const reason = err instanceof Error ? err.message : String(err);
         return { status: 'fail', detail: `根 plugin.json JSON 解析失败: ${reason}` };
     }
-    const errors = (0, plugin_schema_1.validatePluginManifest)(manifest, loaded.schema);
-    const source = loaded.source === 'cache' ? '本地缓存' : '远程';
+    const errors = (0, plugin_schema_1.validatePluginManifest)(manifest, schema);
+    const sourceLabel = source === 'cache' ? '本地缓存' : '远程';
     if (errors.length > 0) {
         return {
             status: 'fail',
-            detail: `根 plugin.json 不合规: ${errors.join('; ')}（schema 来源: ${source}）`,
+            detail: `根 plugin.json 不合规: ${errors.join('; ')}（schema 来源: ${sourceLabel}）`,
         };
     }
-    return { status: 'ok', detail: `根 plugin.json 合规（schema 来源: ${source}）` };
+    return { status: 'ok', detail: `根 plugin.json 合规（schema 来源: ${sourceLabel}）` };
 }
 const STATUS_ICON = {
     ok: '✅',
@@ -170,10 +213,12 @@ const STATUS_ICON = {
  * periscope doctor：本地自检（v1.1 实现，issue #12 + #13）。
  * 五项检查：config 文件存在 / 协议段完整 / Node 版本满足 engines.node / dist/ 编译产物完整 /
  * 根 plugin.json schema 合规（#13，schema 缓存 7 天，获取失败降级 ⚠️）。
- * 除 schema 冷缓存需拉取一次远程 schema 外，其余纯本地；逐项输出 ✅/⚠️/❌，最后一行总结结论。
+ * 支持 `--offline`：禁止任何 schema 网络拉取，冷缓存时该项降级为 ⚠️ 并提示先联网跑一次 doctor 预热缓存；
+ * 其余 4 项本地自检不受影响。
  */
-async function runDoctor(_argv, stdout, stderr, options = {}) {
-    void stderr; // 当前实现不向 stderr 写任何东西（除非错误处理）
+async function runDoctor(argv, stdout, stderr, options = {}) {
+    void stderr; // 当前实现不向 stderr 写任何东西（保留签名以与 describe/init 的 CLI 入口对称；解析/获取失败均走 ⚠️ 降级到 stdout）
+    const { offline } = parseDoctorArgs(argv);
     const configPath = options.PERISCOPE_CONFIG ??
         path.join(options.HOME ?? process.env.HOME ?? '', '.config', 'periscope', 'config.json');
     const repoRoot = options.repoRoot ?? deriveRepoRoot();
@@ -182,7 +227,7 @@ async function runDoctor(_argv, stdout, stderr, options = {}) {
     const cacheDir = options.cacheDir ?? (0, cache_1.defaultCacheDir)();
     const fetchFn = options.fetchFn ?? fetch;
     const pluginJsonPath = options.pluginJsonPath ?? path.join(repoRoot, 'plugin.json');
-    const schemaResult = await checkPluginSchema(pluginJsonPath, cacheDir, fetchFn);
+    const schemaResult = await checkPluginSchema(pluginJsonPath, cacheDir, fetchFn, offline);
     const checks = [
         { label: 'config 文件', result: checkConfigFile(configPath) },
         { label: '协议段', result: checkProtocolSections(configPath) },

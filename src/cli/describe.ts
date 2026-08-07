@@ -1,5 +1,6 @@
 import type { Writable } from 'node:stream';
 import { describeMany } from '../core/describe';
+import { errorMessage } from './shared';
 
 export interface ParsedArgs {
   imagePaths: string[];
@@ -28,10 +29,6 @@ export function parseDescribeArgs(argv: string[]): ParsedArgs {
 
 export function describeUsage(): string {
   return '用法: periscope describe <图片路径或URL> [...] [--intent "描述内容"]';
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }
 
 /**
