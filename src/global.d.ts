@@ -13,8 +13,9 @@ interface ByteBuf {
 declare const process: {
   env: Record<string, string | undefined>;
   argv: string[];
-  stdout: { write(chunk: string): void };
-  stderr: { write(chunk: string): void };
+  stdin: Readable;
+  stdout: Writable;
+  stderr: Writable;
   exitCode: number | string | undefined;
   execPath: string;
 };
@@ -24,7 +25,9 @@ declare const __filename: string;
 
 declare const Buffer: {
   from(data: string, encoding?: 'base64' | 'utf8'): ByteBuf;
+  isBuffer(arg: unknown): boolean;
 };
+type Buffer = ByteBuf;
 
 declare const fetch: (
   url: string,
@@ -85,6 +88,44 @@ declare module 'node:child_process' {
     args?: string[],
     options?: { env?: Record<string, string | undefined>; cwd?: string },
   ): any;
+}
+
+declare module 'node:stream' {
+  export interface Readable {
+    on(event: 'data', listener: (chunk: Buffer | string) => void): this;
+    on(event: 'end', listener: () => void): this;
+    on(event: 'error', listener: (err: Error) => void): this;
+    on(event: 'readable', listener: () => void): this;
+    off(event: 'data', listener: (chunk: Buffer | string) => void): this;
+    off(event: 'end', listener: () => void): this;
+    off(event: 'error', listener: (err: Error) => void): this;
+    off(event: 'readable', listener: () => void): this;
+    removeListener(event: 'data', listener: (chunk: Buffer | string) => void): this;
+    removeListener(event: 'end', listener: () => void): this;
+    removeListener(event: 'error', listener: (err: Error) => void): this;
+    removeListener(event: 'readable', listener: () => void): this;
+    push(chunk: string | Buffer | null): boolean;
+    resume(): this;
+    pause(): this;
+    isPaused(): boolean;
+    setEncoding(encoding: string): this;
+    read(size?: number): string | Buffer | null;
+    readonly readableLength: number;
+  }
+  export class Readable {
+    constructor(opts?: { read?(size: number): void; encoding?: string } | undefined);
+  }
+  export interface Writable {
+    write(chunk: string | Buffer, cb?: (err?: Error | null) => void): boolean;
+    end(chunk?: string | Buffer, cb?: () => void): this;
+    on(event: 'error', listener: (err: Error) => void): this;
+    on(event: 'finish', listener: () => void): this;
+    on(event: string, listener: (...args: unknown[]) => void): this;
+  }
+  export class Writable {
+    constructor(opts?: { write?(chunk: Buffer, enc: string, cb: () => void): void } | undefined);
+  }
+  export function finished(stream: unknown, callback: (err: Error | null) => void): void;
 }
 
 declare module 'node:util' {
