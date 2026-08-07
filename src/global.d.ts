@@ -18,6 +18,7 @@ declare const process: {
   stderr: Writable;
   exitCode: number | string | undefined;
   execPath: string;
+  version: string;
 };
 
 declare const __dirname: string;

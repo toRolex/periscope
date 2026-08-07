@@ -131,13 +131,28 @@ function cliEnv(configPath) {
     assert.notEqual(err.code, 0);
     assert.match(err.stderr, /用法/);
 });
-(0, node_test_1.test)('CLI doctor 子命令 → stderr 提示尚未实现 + 非零退出码', async () => {
+(0, node_test_1.test)('CLI doctor 子命令 → 全 OK 时 stdout 4 项 ✅ + 通过结论 + 退出码 0', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = (0, fixtures_1.writeConfigFile)(dir).path;
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        CLI_ENTRY,
+        'doctor',
+    ], { env: cliEnv(configPath) });
+    assert.equal(stderr, '');
+    const okLines = stdout.split('\n').filter((l) => l.includes('✅') && !l.startsWith('结论:'));
+    assert.equal(okLines.length, 4, `应有 4 行 ✅，stdout：\n${stdout}`);
+    assert.match(stdout, /结论:\s*✅\s*全部通过/);
+});
+(0, node_test_1.test)('CLI doctor 子命令 → config 缺失时非零退出 + stdout 提示运行 init', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = path.join(dir, 'absent.json'); // 故意不创建
     const err = await execFileP(process.execPath, [CLI_ENTRY, 'doctor'], {
-        env: cliEnv((0, fixtures_1.makeTempDir)()),
+        env: cliEnv(configPath),
     }).catch((e) => e);
     assert.notEqual(err.code, 0);
-    assert.match(err.stderr, /doctor/);
-    assert.match(err.stderr, /尚未实现/);
+    assert.match(err.stdout, /❌/);
+    assert.match(err.stdout, /配置文件/);
+    assert.match(err.stdout, /periscope init/);
 });
 (0, node_test_1.test)('CLI init 子命令：目标配置已存在 → 拒绝 + 非零退出码（fork 端到端）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
