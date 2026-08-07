@@ -33,7 +33,12 @@ type Buffer = ByteBuf;
 declare const fetch: (
   url: string,
   init?: { method?: string; headers?: Record<string, string>; body?: string },
-) => Promise<{ status: number; ok: boolean; text(): Promise<string> }>;
+) => Promise<{
+  status: number;
+  ok: boolean;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+}>;
 
 declare const require: ((id: string) => any) & { main?: { exports: unknown } };
 declare const module: { exports: unknown; main?: unknown };

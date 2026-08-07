@@ -56,6 +56,57 @@ export function withEnv(
   }
 }
 
+/**
+ * Agent Plugins 1.0.0 根 plugin.json schema（固定本地 fixture）。
+ * 内容从 https://agent-plugins.org/schemas/1.0.0/plugin.schema.json 复制，
+ * 作为测试的固定权威来源——避免测试依赖真实 schema URL 造成 CI 抖动（issue #13）。
+ */
+export const PLUGIN_SCHEMA_1_0_0: Record<string, unknown> = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+  title: 'Agent Plugins Manifest',
+  description:
+    'Machine-readable schema for plugin.json in Agent Plugins 1.0.0. The Agent Plugins specification defines additional semantic and operational requirements.',
+  type: 'object',
+  properties: {
+    $schema: {
+      const: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+      description:
+        'Canonical identifier of the plugin manifest schema for the Agent Plugins version targeted by this document.',
+    },
+    name: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 64,
+      pattern: '^(?!.*(?:--|\\.\\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$',
+      description: 'Human-readable plugin name.',
+    },
+    version: { type: 'string' },
+    description: { type: 'string' },
+    author: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        email: { type: 'string' },
+        url: { type: 'string' },
+      },
+      additionalProperties: false,
+    },
+    homepage: { type: 'string' },
+    repository: { type: 'string' },
+    license: { type: 'string' },
+    keywords: { type: 'array', items: { type: 'string' } },
+    extensions: {
+      type: 'object',
+      description:
+        'Client-specific manifest data keyed by reverse-domain extension namespace. Agent Plugins assigns no semantics to namespace object contents.',
+      additionalProperties: { type: 'object' },
+    },
+  },
+  required: ['$schema', 'name'],
+  additionalProperties: false,
+};
+
 export interface MakeTestEnvOptions {
   /** 设置 PERISCOPE_API_KEY。 */
   apiKey: string;
