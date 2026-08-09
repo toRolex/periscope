@@ -16,10 +16,21 @@ image ──▶ periscope describe ──▶ 外部视觉 LLM（openai / anthrop
 
 ## 安装
 
+### 作为 Claude Code 插件（推荐）
+
+```bash
+claude plugin marketplace add toRolex/periscope
+claude plugin install periscope
+```
+
+或在 Claude Code 内用 `/plugin` 添加 marketplace `toRolex/periscope` 后安装 `periscope`。装好后贴图自动注入描述，也可用 `/describe-image` skill 手动触发。
+
+### 作为 CLI 使用
+
 前置要求：**Node.js >= 20**。
 
 ```bash
-# 方式一：git clone 后直接使用（dist/ 已提交，无需 build）
+# git clone 后直接使用（dist/ 已提交，无需 build）
 git clone <仓库地址>
 cd periscope
 pnpm install        # 仅安装 typescript（开发用）；纯使用可跳过
@@ -225,14 +236,15 @@ periscope describe https://example.com/diagram.png
 
 ## Marketplace 发布说明
 
-**发布流程本身不在 MVP 范围**，本仓库先准备好可发布的插件结构，后续发布步骤建议：
+插件结构与 marketplace 目录已就绪（`claude plugin validate ./` 通过，本地安装验证通过），用户可直接通过 marketplace 安装（见上文「安装」）。发布相关说明：
 
-1. 确认 `.claude-plugin/plugin.json` 的 `name` / `version` / `author` 元数据正确（当前 `name: periscope`，`version: 0.1.0`）。
-2. 确认 `hooks/hooks.json` 与 `skills/describe-image/SKILL.md` 随插件根一起发布，且 `dist/` 编译产物包含在发布包中（用户零构建即用）。
-3. 发布到 Claude Code 插件 marketplace / 目录时，按对应平台要求打包插件根目录；仓库内验证方式：
+1. **自托管 marketplace（当前形态）**：仓库 `.claude-plugin/marketplace.json` 声明 `periscope` 插件（source 指向本仓库），安装方式：
    ```bash
-   gh release create <tag>   # 如先做 git tag + release，再指向 marketplace
+   claude plugin marketplace add toRolex/periscope
+   claude plugin install periscope
    ```
+2. **版本与 tag**：插件 `version` 当前 `0.1.0`。发布新版时用 `claude plugin tag .` 生成 `periscope--v<version>` 标签并推送，marketplace 用户升级后拉到新版本。
+3. **提交社区 marketplace（可选）**：插件成熟后提交到 [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community) 公共目录，让所有 Claude Code 用户可发现。提交前先 `claude plugin validate ./` 通过；社区目录会 pin 插件提交 SHA。
 4. 发布前建议在干净环境（新 clone + 仅 `node`）实测「零构建即用」链路，避免漏提交 `dist/` 产物。
 
 ## Agent Plugins 1.0.0 合规
