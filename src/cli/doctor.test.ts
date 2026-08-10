@@ -124,7 +124,7 @@ test('doctor config 文件缺失 → 该项 ❌ + 结论列出问题 + 退出码
   assert.ok(!fs.existsSync(configPath), 'doctor 不应懒创建 config 文件');
   assert.match(stdout.data, /❌/);
   assert.match(stdout.data, /配置文件/);
-  assert.match(stdout.data, /periscope init/);
+  assert.match(stdout.data, /init\.js 或 \/set-up/);
   assert.match(stdout.data, /结论:\s*❌/);
 });
 

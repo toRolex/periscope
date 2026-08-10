@@ -3,12 +3,12 @@
 给纯文本 coding agent 的视觉桥插件（MVP）。把本地图片 / 远程图片 URL / 用户在 Claude Code 里的贴图，转成文字描述，喂给只吃文本的 agent。零构建、零额外运行时依赖，`dist/` 已随仓库提交。
 
 ```
-image ──▶ periscope describe ──▶ 外部视觉 LLM（openai / anthropic / responses）──▶ 文字描述
+image ──▶ describe.js ──▶ 外部视觉 LLM（openai / anthropic / responses）──▶ 文字描述
 ```
 
 ## 特性
 
-- **CLI**：`periscope describe <图片路径或URL> [...]`，单图输出纯文本，多图逐行 `${source}: ${描述}`。
+- **独立脚本**：`node dist/cli/describe.js <图片路径或URL> [...]`，单图输出纯文本，多图逐行 `${source}: ${描述}`。
 - **三协议**：openai（chat/completions，DashScope 兼容）、anthropic（v1/messages）、responses（v1/responses），配置文件切换。
 - **贴图 hook**：Claude Code `UserPromptSubmit` 事件自动读取 `image_paths`，把 `[Image N] basename: 描述` 注入 `additionalContext`，始终放行（`decision: approve`）。
 - **本地缓存**：未变图片的描结果缓存到 `~/.cache/periscope/`，命中不重复请求视觉端点；远程 URL 图不落缓存。
@@ -25,7 +25,17 @@ claude plugin install periscope
 
 或在 Claude Code 内用 `/plugin` 添加 marketplace `toRolex/periscope` 后安装 `periscope`。装好后贴图自动注入描述，也可用 `/describe-image` skill 手动触发。
 
-### 作为 CLI 使用
+### 安装后配置
+
+装好后先初始化配置，让 describe 能连上你的视觉端点。在 Claude Code 会话里敲 **`/set-up`**（**仅用户主动触发**，模型不会擅自弹出配置流程），skill 会引导你在**独立终端**运行 init 脚本完成配置、在会话内解释协议与 apiKey 选项，最后自动跑 doctor 验证配置可被正确读取。
+
+也可以跳过 `/set-up`，直接在独立终端手动运行 init 脚本（见下文「`init`」一节）：
+
+```bash
+node dist/cli/init.js
+```
+
+### 作为独立脚本使用
 
 前置要求：**Node.js >= 20**。
 
@@ -34,17 +44,10 @@ claude plugin install periscope
 git clone <仓库地址>
 cd periscope
 pnpm install        # 仅安装 typescript（开发用）；纯使用可跳过
-node dist/cli/index.js describe ./demo.png
+node dist/cli/describe.js ./demo.png
 ```
 
 > 纯使用场景不需要 `pnpm install`，直接跑 `dist/` 下的编译产物即可。`pnpm install` / `pnpm build` 只在需要修改源码或跑测试时需要。
-
-可选：把 CLI 链接到 PATH，之后直接用 `periscope` 命令：
-
-```bash
-pnpm link           # 或 npm link；package.json bin 指向 dist/cli/index.js
-periscope describe ./demo.png
-```
 
 ## 配置
 
@@ -95,46 +98,56 @@ periscope describe ./demo.png
 | `PERISCOPE_CONFIG`   | 配置文件路径（默认 `~/.config/periscope/config.json`）           | 覆盖默认路径               |
 | `PERISCOPE_CACHE_DIR`| 缓存目录（默认 `~/.cache/periscope/`）                           | 覆盖默认目录               |
 
-## CLI 用法
+## 独立脚本用法
 
 ### `describe` — 描述图片
 
 ```
-periscope describe <图片路径或URL> [...] [--intent "描述内容"]
+node dist/cli/describe.js <图片路径或URL> [...] [--intent "描述内容"]
 ```
 
 - `<图片路径或URL>`：本地图片路径或 `http(s)` 图片 URL，可传多个，空格分隔。
 - `--intent "..."`（可选）：描述意图，如 `"读取图片中的文字"`、`"解析图表"`。
-- 直接运行编译产物：`node dist/cli/index.js describe <图片路径或URL> [...]`（插件环境里是 `node ${CLAUDE_PLUGIN_ROOT}/dist/cli/index.js ...`）。
+- 插件环境里用 `node ${CLAUDE_PLUGIN_ROOT}/dist/cli/describe.js <图片路径或URL> [...]`。
 
 ### `init` — 交互式初始化配置
 
 ```
-periscope init
+node dist/cli/init.js
 ```
 
-通过 stdin 一问一答引导用户完成配置：选择协议（`openai` / `anthropic` / `responses`）→ 填 `baseUrl` → 填 `model` → 填 `apiKey`（可空），最后写出到默认配置路径（`PERISCOPE_CONFIG` 优先，否则 `~/.config/periscope/config.json`）。
+在**独立终端（TTY）**运行的交互式向导：↑/↓ 方向键选择协议（`openai` / `anthropic` / `responses`，回车确认）→ 逐项填写 `baseUrl` / `model` / `apiKey` → 展示配置摘要（已存在配置时附覆盖警告）→ 输入 `y` 确认覆盖写入 / 其他键放弃。写入路径 `PERISCOPE_CONFIG` 优先，否则 `~/.config/periscope/config.json`。
 
 行为要点：
 
-- **目标文件已存在则拒绝覆盖**（避免误删 API key），stderr 报错 + 非零退出码。需重新生成请先手动删除该文件再运行 `periscope init`。**没有 `--force` 选项**——强制覆盖必须用户自己操作文件。
-- 任一回答 EOF 或校验失败立即终止，非零退出码。
+- **确认覆盖**：目标文件已存在时先展示摘要 + 覆盖警告，输入 `y` 才覆盖写入；输入其他字符放弃写入，现有配置保持不变。**没有默认值**——所有字段都需要用户输入。
+- `baseUrl` / `model` / `apiKey` 均**必填**，空输入报错退出（EOF 或 Ctrl+C 也立即终止，非零退出码）。
+- **非 TTY（管道/重定向）环境拒绝运行**，报错提示需要在交互式终端中运行。
 - 写出的 JSON 包含 `protocol` / `apiKey` / `openai` / `anthropic` / `responses` 顶层字段；用户选中的协议段 `baseUrl` / `model` 取用户输入，其余协议段保留 DEFAULT_CONFIG 的端点。
 
 ```bash
 # 典型使用：装好插件后首次跑
-periscope init
-# 提示: 选择协议 (openai/anthropic/responses): openai
-# 提示: openai baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-# 提示: openai model: qwen-vl-max
-# 提示: apiKey (可空): sk-xxx
-# stdout: 已写入配置: /Users/you/.config/periscope/config.json
+node dist/cli/init.js
+# 选择协议（↑/↓ 切换，回车确认）:
+# ❯ openai
+#   anthropic
+#   responses
+# 请输入 baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+# 请输入 model: qwen-vl-max
+# 请输入 apiKey: sk-xxx
+# 配置摘要:
+#   协议: openai
+#   baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+#   model: qwen-vl-max
+#   apiKey: sk-xxx
+# 确认写入？(y/n): y
+# 已写入配置: /Users/you/.config/periscope/config.json
 ```
 
 ### `doctor` — 本地自检
 
 ```
-periscope doctor [--offline]
+node dist/cli/doctor.js [--offline]
 ```
 
 五项自检，全部纯本地（`--offline` 时连 schema 网络拉取也禁用）：
@@ -142,7 +155,7 @@ periscope doctor [--offline]
 1. **config 文件**：检查默认路径（`PERISCOPE_CONFIG` / `~/.config/periscope/config.json`）文件存在性。
 2. **协议段**：检查 `config.json` 的 `openai` / `anthropic` / `responses` 段都有 `baseUrl` + `model`。
 3. **Node 版本**：与仓库 `package.json` 的 `engines.node` 比较（默认 `>=20`）。
-4. **dist/ 编译产物**：检查 `dist/cli/index.js` + `dist/core/describe.js` 存在（零构建即用假设）。
+4. **dist/ 编译产物**：检查 `dist/cli/describe.js` + `dist/cli/init.js` + `dist/cli/doctor.js` 存在（零构建即用假设）。
 5. **根 `plugin.json` schema 合规**：按 [Agent Plugins 1.0.0](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json) 校验仓库根 `plugin.json`。
 
 逐项输出 `✅ / ⚠️ / ❌` + 一行结论；`❌` 项数 = 退出码是否为零。
@@ -164,13 +177,13 @@ periscope doctor [--offline]
 
 ```bash
 # 单图 + 意图
-periscope describe ./screenshot.png --intent "读取图片里的报错信息"
+node dist/cli/describe.js ./screenshot.png --intent "读取图片里的报错信息"
 
 # 多图（本地 + URL 混用）
-periscope describe ./a.png https://example.com/cat.png
+node dist/cli/describe.js ./a.png https://example.com/cat.png
 
 # 远程 URL 图直接透传给视觉端点，无需先下载
-periscope describe https://example.com/diagram.png
+node dist/cli/describe.js https://example.com/diagram.png
 ```
 
 ## 贴图 hook（Claude Code 插件）
@@ -207,7 +220,7 @@ periscope describe https://example.com/diagram.png
 - **字符预算**：`additionalContext` 软预算约 9000 字符，接近上限时截断并注明 `（另有 N 张图片未描述）`。
 - **缓存复用**：同一图片（路径 + 修改时间 + 大小未变）多次贴图只请求一次视觉端点。
 - 无图片事件注入空串 `additionalContext`（满足 2.1.x hook schema 必填约束）。
-- 在 Claude Code 里也可手动触发 skill：`describe-image`，运行 `node ${CLAUDE_PLUGIN_ROOT}/dist/cli/index.js describe <图片路径或URL> [--intent "..."]`。
+- 在 Claude Code 里也可手动触发 skill：`describe-image`，运行 `node ${CLAUDE_PLUGIN_ROOT}/dist/cli/describe.js <图片路径或URL> [--intent "..."]`。
 
 ## 人工实测指南（真实视觉 LLM）
 
@@ -222,11 +235,11 @@ periscope describe https://example.com/diagram.png
    ```
 2. **CLI 实测**：准备一张本地图片与一个真实 URL，分别跑：
    ```bash
-   periscope describe ./本地图.png --intent "描述这张图片"
-   periscope describe https://example.com/远程图.png
+   node dist/cli/describe.js ./本地图.png --intent "描述这张图片"
+   node dist/cli/describe.js https://example.com/远程图.png
    ```
    **预期结果**：stdout 输出与图片内容一致的中文描述；退出码 `0`；再次跑同一张本地图应命中缓存（秒出，不再请求端点）。
-3. **多图实测**：`periscope describe ./a.png ./b.png`，预期逐行输出 `a.png: ...` / `b.png: ...`。
+3. **多图实测**：`node dist/cli/describe.js ./a.png ./b.png`，预期逐行输出 `a.png: ...` / `b.png: ...`。
 4. **贴图注入实测**：在装好插件 + 配好 key 的 Claude Code 会话里贴一张图，确认：
    - agent 能读到 `[Image N] basename: 描述` 形式的图片描述并据此作答；
    - 消息正常发送（hook 始终 `approve`，即使某图失败也只显示 `描述不可用`）。
@@ -262,7 +275,7 @@ periscope 同时遵守 [Agent Plugins 1.0.0](https://agent-plugins.org) 标准�
 ### 合规要点
 
 - **根 `plugin.json`**：仓库根的标准 manifest，包含 `$schema` / `name` / `version` / `description` / `author` 五字段，`name` 沿用 `periscope`。
-- **Skill 路径**：describe 能力以 `skills/describe-image/SKILL.md` 形式承载（frontmatter `name` / `description` / `allowed-tools` 已在 Agent Skills 规范字段表内，无需改动）。兼容 harness 的 agent 读到 Skill 后按指令调 `node dist/cli/index.js describe <图片路径或URL> [--intent "..."]`。
+- **Skill 路径**：describe 能力以 `skills/describe-image/SKILL.md` 形式承载（frontmatter `name` / `description` / `allowed-tools` 已在 Agent Skills 规范字段表内，无需改动）。兼容 harness 的 agent 读到 Skill 后按指令调 `node dist/cli/describe.js <图片路径或URL> [--intent "..."]`。
 - **不上 MCP server**：periscope **不**写 `mcp.json`、**不**把 describe 暴露为 MCP tool——避免在兼容 harness 工具列表里多一个 describe 噪音；视觉能力以 Skill 文本指令形式呈现。
 - **Claude Code 原生结构保留**：`.claude-plugin/plugin.json` + `hooks/hooks.json` + 现有 `skills/` 路径不动。
 
@@ -284,7 +297,7 @@ periscope 同时遵守 [Agent Plugins 1.0.0](https://agent-plugins.org) 标准�
 错误信息走 stderr，退出码非零。常见：缺图片路径（`缺少图片路径`）、文件不存在（`无法读取图片文件`）、端点非 2xx（`视觉端点返回 HTTP 500: ...`）、未知参数（`未知参数: --xxx`）、未知协议（`未知协议: ...`）。
 
 **Q：需要安装 TypeScript / 运行 build 吗？**
-纯使用不需要。`dist/` 已随仓库提交，直接跑 `node dist/cli/index.js` 即可。`pnpm install` / `pnpm build` 只在改源码或跑测试时需要。
+纯使用不需要。`dist/` 已随仓库提交，直接跑 `node dist/cli/describe.js` 即可。`pnpm install` / `pnpm build` 只在改源码或跑测试时需要。
 
 **Q：Node 版本要求？**
 Node.js >= 20（代码与测试使用内建 `fetch` 与 `node:test`）。
@@ -296,7 +309,7 @@ Node.js >= 20（代码与测试使用内建 `fetch` 与 `node:test`）。
 - 测试：`pnpm test`（=`tsc && node --test`），含 CLI、core、三协议、config、缓存、hook、插件契约，以及 `src/delivery.smoke.test.ts` 的 mock 端点端到端冒烟。
 - 本地 mock 视觉端点：`src/testing/mock-server.ts`（离线 HTTP server，记录请求、返回可定制的视觉响应），`src/testing/fixtures.ts`（1x1 PNG 与临时配置/目录工具）。
 - 目录速览：
-  - `src/cli/index.ts` — CLI 入口（解析参数 → describe → 输出/退出码）
+  - `src/cli/describe.ts` — describe 脚本入口（参数解析 → describe → 输出/退出码）
   - `src/core/describe.ts` — 协议无关核心 `describe()` / `describeMany()`（缓存 → 转 data URL → 适配器 → 传输）
   - `src/protocols/{openai,anthropic,responses,index}.ts` — 三协议适配器（请求构造 + 容错响应提取）
   - `src/config/config.ts` — 懒创建配置 + 环境变量覆盖

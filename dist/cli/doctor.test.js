@@ -132,7 +132,7 @@ function writePluginJson(dir, manifest) {
     assert.ok(!fs.existsSync(configPath), 'doctor 不应懒创建 config 文件');
     assert.match(stdout.data, /❌/);
     assert.match(stdout.data, /配置文件/);
-    assert.match(stdout.data, /periscope init/);
+    assert.match(stdout.data, /init\.js 或 \/set-up/);
     assert.match(stdout.data, /结论:\s*❌/);
 });
 (0, node_test_1.test)('doctor config 缺少 openai 协议段 → openai 协议段检查 ❌ + 列出缺失段名', async () => {

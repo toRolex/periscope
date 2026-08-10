@@ -143,7 +143,7 @@ test('doctor 脚本 → 全 OK 时 stdout 5 项 ✅ + 通过结论 + 退出码 0
   assert.match(stdout, /结论:\s*✅\s*全部通过/);
 });
 
-test('doctor 脚本 → config 缺失时非零退出 + stdout 提示运行 init', async () => {
+test('doctor 脚本 → config 缺失时非零退出 + stdout 提示运行 init.js 或 /set-up', async () => {
   const dir = makeTempDir();
   const configPath = path.join(dir, 'absent.json'); // 故意不创建
 
@@ -154,7 +154,7 @@ test('doctor 脚本 → config 缺失时非零退出 + stdout 提示运行 init'
   assert.notEqual(err.code, 0);
   assert.match(err.stdout, /❌/);
   assert.match(err.stdout, /配置文件/);
-  assert.match(err.stdout, /periscope init/);
+  assert.match(err.stdout, /init\.js 或 \/set-up/);
 });
 
 test('doctor 脚本 --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（不发起外部请求）', async () => {

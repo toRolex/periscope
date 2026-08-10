@@ -87,7 +87,7 @@ function checkConfigFile(configPath) {
     if (!fs.existsSync(configPath)) {
         return {
             status: 'fail',
-            detail: `配置文件不存在: ${configPath}（建议运行 periscope init）`,
+            detail: `配置文件不存在: ${configPath}（建议运行 init.js 或 /set-up）`,
         };
     }
     return { status: 'ok', detail: `配置文件存在: ${configPath}` };
@@ -212,7 +212,7 @@ const STATUS_ICON = {
     fail: '❌',
 };
 /**
- * periscope doctor：本地自检（v1.1 实现，issue #12 + #13）。
+ * doctor 脚本：本地自检（v1.1 实现，issue #12 + #13）。
  * 五项检查：config 文件存在 / 协议段完整 / Node 版本满足 engines.node / dist/ 编译产物完整 /
  * 根 plugin.json schema 合规（#13，schema 缓存 7 天，获取失败降级 ⚠️）。
  * 支持 `--offline`：禁止任何 schema 网络拉取，冷缓存时该项降级为 ⚠️ 并提示先联网跑一次 doctor 预热缓存；

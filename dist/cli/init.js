@@ -160,7 +160,7 @@ async function readField(nextKey, stdout, prompt) {
     }
 }
 /**
- * periscope init：交互式初始化向导（独立终端运行）。
+ * init 脚本：交互式初始化向导（独立终端运行）。
  * 流程：方向键选择协议 → 填 baseUrl/model/apiKey（必填）→ 展示摘要 + 覆盖警告 → y/n 确认写入。
  * 写入路径 PERISCOPE_CONFIG 优先，否则 HOME 派生。stdin 非 TTY 时降级报错退出。
  */

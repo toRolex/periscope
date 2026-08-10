@@ -145,7 +145,7 @@ function cliEnv(configPath) {
     assert.equal(okLines.length, 5, `应有 5 行 ✅，stdout：\n${stdout}`);
     assert.match(stdout, /结论:\s*✅\s*全部通过/);
 });
-(0, node_test_1.test)('doctor 脚本 → config 缺失时非零退出 + stdout 提示运行 init', async () => {
+(0, node_test_1.test)('doctor 脚本 → config 缺失时非零退出 + stdout 提示运行 init.js 或 /set-up', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'absent.json'); // 故意不创建
     const err = await execFileP(process.execPath, [DOCTOR_ENTRY], {
@@ -154,7 +154,7 @@ function cliEnv(configPath) {
     assert.notEqual(err.code, 0);
     assert.match(err.stdout, /❌/);
     assert.match(err.stdout, /配置文件/);
-    assert.match(err.stdout, /periscope init/);
+    assert.match(err.stdout, /init\.js 或 \/set-up/);
 });
 (0, node_test_1.test)('doctor 脚本 --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（不发起外部请求）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();

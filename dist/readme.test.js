@@ -68,21 +68,22 @@ function readme() {
     assert.match(md, /PERISCOPE_CONFIG/);
     assert.match(md, /PERISCOPE_CACHE_DIR/);
 });
-(0, node_test_1.test)('README 说明 CLI 用法（describe / 多图 / URL / --intent）', () => {
+(0, node_test_1.test)('README 说明 describe 脚本用法（多图 / URL / --intent）', () => {
     const md = readme();
-    assert.match(md, /periscope describe/);
+    assert.match(md, /dist\/cli\/describe\.js/);
     assert.match(md, /--intent/);
     assert.match(md, /URL/);
 });
-(0, node_test_1.test)('README 说明 init 子命令（交互式 / 拒绝覆盖 / 无 --force）', () => {
+(0, node_test_1.test)('README 说明 init 脚本（交互式向导 / 方向键选协议 / 必填 / 确认覆盖）', () => {
     const md = readme();
-    assert.match(md, /periscope init/);
-    assert.match(md, /拒绝覆盖|已存在/);
-    assert.match(md, /没有 `--force`|无 --force|--force.*(不支持|未提供|没有)/);
+    assert.match(md, /dist\/cli\/init\.js/);
+    assert.match(md, /确认覆盖|覆盖/);
+    assert.match(md, /方向键|↑\/↓|协议/);
+    assert.doesNotMatch(md, /拒绝覆盖/, '新 init 语义为确认覆盖而非拒绝覆盖');
 });
-(0, node_test_1.test)('README 说明 doctor 子命令（5 项本地自检 / --offline 语义）', () => {
+(0, node_test_1.test)('README 说明 doctor 脚本（5 项本地自检 / --offline 语义）', () => {
     const md = readme();
-    assert.match(md, /periscope doctor/);
+    assert.match(md, /dist\/cli\/doctor\.js/);
     assert.match(md, /--offline/);
     assert.match(md, /离线模式/);
     // 五项自检都提到
@@ -91,6 +92,12 @@ function readme() {
     assert.match(md, /Node 版本/);
     assert.match(md, /dist\//);
     assert.match(md, /plugin\.json.*schema|schema.*plugin\.json/);
+});
+(0, node_test_1.test)('README 含「安装后配置」步骤（引导 /set-up 或 init 脚本）', () => {
+    const md = readme();
+    assert.match(md, /安装后配置/);
+    assert.match(md, /set-up/);
+    assert.match(md, /dist\/cli\/init\.js/, '安装后配置应给出 init 独立脚本');
 });
 (0, node_test_1.test)('README 说明 hook 贴图注入与放行语义', () => {
     const md = readme();
