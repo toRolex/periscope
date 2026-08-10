@@ -176,18 +176,18 @@ function cliEnv(configPath) {
     assert.match(stdout, /离线模式/);
     assert.match(stdout, /⚠️ 根 plugin\.json schema/);
 });
-(0, node_test_1.test)('init 脚本：目标配置已存在 → 拒绝 + 非零退出码（fork 端到端）', async () => {
+(0, node_test_1.test)('init 脚本：fork 管道输入（非 TTY）→ 降级报错 + 非零退出码，已存在配置不被修改（端到端）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = (0, fixtures_1.writeConfigFile)(dir, { apiKey: 'preserved-key' }).path;
     const originalContent = fs.readFileSync(configPath).toString('utf8');
     const err = await execFileP(process.execPath, [INIT_ENTRY], {
         env: cliEnv(configPath),
-        input: 'openai\nhttps://x\nm\nk',
+        input: '\x1b[B\rhttps://x\r m\r k\r y\n',
     }).catch((e) => e);
-    assert.notEqual(err.code, 0);
-    assert.match(err.stderr, /已存在/);
+    assert.notEqual(err.code, 0, '非 TTY 管道环境应降级报错退出');
+    assert.match(err.stderr, /交互式终端|TTY/);
     const afterContent = fs.readFileSync(configPath).toString('utf8');
-    assert.equal(afterContent, originalContent, 'fork 模式下已存在文件字节不变');
+    assert.equal(afterContent, originalContent, 'fork 非 TTY 降级时已存在文件字节不变');
 });
 (0, node_test_1.test)('describe 脚本接受多张图片并按传入顺序聚合输出', async (t) => {
     const dir = (0, fixtures_1.makeTempDir)();
