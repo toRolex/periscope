@@ -9,8 +9,8 @@ import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from './
 import { runHook } from './testing/hook';
 
 const execFileP = promisify(execFile);
-/** 编译后测试位于 dist/，CLI 与 hook 入口即同目录产物。 */
-const CLI_ENTRY = path.join(__dirname, 'cli', 'index.js');
+/** 编译后测试位于 dist/，describe 独立脚本与 hook 入口即同目录产物。 */
+const DESCRIBE_ENTRY = path.join(__dirname, 'cli', 'describe.js');
 const HOOK_ENTRY = path.join(__dirname, 'hook', 'index.js');
 
 function smokeEnv(configPath: string): Record<string, string | undefined> {
@@ -34,8 +34,7 @@ test('smoke: README 描述的 CLI 单图用法端到端可运行（mock 端点�
   }).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     imagePath,
     '--intent',
     '描述这张图片',
@@ -64,8 +63,7 @@ test('smoke: CLI 多图 + URL 远程图逐行输出 ${source}: ${desc}', async (
   const url = 'https://example.com/cat.png';
 
   const { stdout, stderr } = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     img1,
     url,
   ], { env: smokeEnv(configPath) });

@@ -67,7 +67,7 @@ test('doctor 全部检查通过 → stdout 含 4 行 ✅ + 一行通过结论 + 
   const tmp = makeTempDir('periscope-doctor-happy-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
 
   const stdout = new StringWritable();
   const stderr = new StringWritable();
@@ -101,7 +101,7 @@ test('doctor config 文件缺失 → 该项 ❌ + 结论列出问题 + 退出码
   const tmp = makeTempDir('periscope-doctor-noconfig-');
   const configPath = path.join(tmp, 'absent.json'); // 故意不创建
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
 
   const stdout = new StringWritable();
   const stderr = new StringWritable();
@@ -140,7 +140,7 @@ test('doctor config 缺少 openai 协议段 → openai 协议段检查 ❌ + 列
   };
   fs.writeFileSync(configPath, JSON.stringify(partial));
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
 
   const stdout = new StringWritable();
   const stderr = new StringWritable();
@@ -175,7 +175,7 @@ test('doctor config 缺少 anthropic 协议段 → 该项 ❌', async () => {
   };
   fs.writeFileSync(configPath, JSON.stringify(partial));
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
 
   const stdout = new StringWritable();
   const stderr = new StringWritable();
@@ -209,7 +209,7 @@ test('doctor config 缺少 responses 协议段 → 该项 ❌', async () => {
   };
   fs.writeFileSync(configPath, JSON.stringify(partial));
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
 
   const stdout = new StringWritable();
   const stderr = new StringWritable();
@@ -236,7 +236,7 @@ test('doctor Node 版本低于 engines.node 下限 → 该项 ❌ + 结论非零
   const tmp = makeTempDir('periscope-doctor-oldnode-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
 
   const stdout = new StringWritable();
   const stderr = new StringWritable();
@@ -260,12 +260,12 @@ test('doctor Node 版本低于 engines.node 下限 → 该项 ❌ + 结论非零
   assert.match(stdout.data, /v18/);
 });
 
-test('doctor dist/ 缺少 cli/index.js → 该项 ❌（提示需要 npm run build）', async () => {
+test('doctor dist/ 缺少 cli/describe.js → 该项 ❌（提示需要 npm run build）', async () => {
   const tmp = makeTempDir('periscope-doctor-nodist-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  // 故意只放 describe.js，缺 cli/index.js
-  seedDist(distDir, ['core/describe.js']);
+  // 故意只放 init/doctor，缺 cli/describe.js
+  seedDist(distDir, ['cli/init.js', 'cli/doctor.js']);
 
   const stdout = new StringWritable();
   const stderr = new StringWritable();
@@ -286,7 +286,7 @@ test('doctor dist/ 缺少 cli/index.js → 该项 ❌（提示需要 npm run bui
 
   assert.notEqual(code, 0);
   assert.match(stdout.data, /dist[\s\S]*❌/);
-  assert.match(stdout.data, /cli\/index\.js/);
+  assert.match(stdout.data, /cli\/describe\.js/);
 });
 
 test('doctor 多项同时异常 → 结论列出总项数（每条异常贡献一次计数）', async () => {
@@ -324,7 +324,7 @@ test('doctor 命中 schema 缓存时全程零外部请求（fetchFn 不被调用
   const tmp = makeTempDir('periscope-doctor-net-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
   writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
   const cacheDir = makeTempDir('periscope-doctor-cache-');
   seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
@@ -364,7 +364,7 @@ test('doctor 根 plugin.json 合规（schema 来源: 本地缓存）→ 该项 �
   const tmp = makeTempDir('periscope-doctor-schema-ok-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
   writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
   const cacheDir = makeTempDir('periscope-doctor-cache-');
   seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
@@ -396,7 +396,7 @@ test('doctor 根 plugin.json 不合规（name 大写）→ 该项 ❌ + 来源�
   const tmp = makeTempDir('periscope-doctor-schema-bad-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
   writePluginJson(tmp, { ...VALID_PLUGIN_MANIFEST, name: 'Periscope' });
   const cacheDir = makeTempDir('periscope-doctor-cache-');
   seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
@@ -429,7 +429,7 @@ test('doctor schema 获取失败（冷缓存）→ 该项 ⚠️ 降级 + 退出
   const tmp = makeTempDir('periscope-doctor-schema-degraded-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
   // 不写 plugin.json、不种子缓存 → 冷缓存，fetchFn 抛错 → 降级 ⚠️
   const cacheDir = makeTempDir('periscope-doctor-cache-');
 
@@ -459,7 +459,7 @@ test('doctor --offline 冷缓存时零外部请求（fetchFn 不被调用） + s
   const tmp = makeTempDir('periscope-doctor-offline-cold-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
   // 不种子缓存 → 走冷缓存路径；--offline 必须拒绝调用 fetchFn
   const cacheDir = makeTempDir('periscope-doctor-cache-');
 
@@ -511,7 +511,7 @@ test('doctor --offline 命中缓存时使用本地缓存校验（fetchFn 不被�
   const tmp = makeTempDir('periscope-doctor-offline-cached-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
   writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
   const cacheDir = makeTempDir('periscope-doctor-cache-');
   seedSchemaCache(cacheDir, PLUGIN_SCHEMA_1_0_0);
@@ -584,7 +584,7 @@ test('doctor --offline 紧贴其他参数也能识别（位置无关）', async 
   const tmp = makeTempDir('periscope-doctor-offline-pos-');
   const configPath = writeFullConfig(tmp);
   const distDir = tmpDist();
-  seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+  seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
   const cacheDir = makeTempDir('periscope-doctor-cache-');
 
   let fetchCalls = 0;

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -38,6 +39,7 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const readline = __importStar(require("node:readline"));
 const config_1 = require("../config/config");
+const shared_1 = require("./shared");
 const PROTOCOLS = ['openai', 'anthropic', 'responses'];
 function defaultConfigPathForEnv(env) {
     return (env.PERISCOPE_CONFIG ??
@@ -104,4 +106,15 @@ async function runInit(_argv, stdin, stdout, stderr, env) {
     fs.writeFileSync(configPath, JSON.stringify(next, null, 2) + '\n');
     stdout.write(`已写入配置: ${configPath}\n`);
     return 0;
+}
+if (require.main === module) {
+    runInit(process.argv.slice(2), process.stdin, process.stdout, process.stderr, {
+        HOME: process.env.HOME,
+        PERISCOPE_CONFIG: process.env.PERISCOPE_CONFIG,
+    }).then((code) => {
+        process.exitCode = code;
+    }, (err) => {
+        process.stderr.write(`错误: ${(0, shared_1.errorMessage)(err)}\n`);
+        process.exitCode = 1;
+    });
 }

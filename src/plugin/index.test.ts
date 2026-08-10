@@ -129,14 +129,19 @@ test('AC2 skill 自动可用：description + 插件根变量调用 CLI + allowed
   assert.match(frontmatter, /^allowed-tools:.+/m, 'frontmatter 应声明 allowed-tools');
   assert.match(
     frontmatter,
-    /Bash\(node \$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/index\.js \*\)/,
-    'allowed-tools 应允许经插件根变量运行编译 CLI',
+    /Bash\(node \$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/describe\.js \*\)/,
+    'allowed-tools 应允许经插件根变量运行编译 describe 独立脚本',
   );
   assert.match(
     body,
-    /\$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/index\.js describe/,
-    'body 应指令经插件根变量调用 CLI describe',
+    /\$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/describe\.js/,
+    'body 应指令经插件根变量调用 describe 独立脚本',
   );
+});
+
+test('AC2 package.json 不再声明 bin（periscope 命令分发器已删除）', () => {
+  const pkg = readJson(path.join(REPO_ROOT, 'package.json')) as Record<string, unknown>;
+  assert.equal(pkg.bin, undefined, 'package.json 不应再声明 bin');
 });
 
 test('AC3 Codex 天然跳过：仓库不提供 .codex-plugin 清单，Codex 不加载 Claude Code hooks', () => {
@@ -198,11 +203,11 @@ test('AC4 契约执行冒烟：skill 指令的 CLI 命令可解析并输出描�
     openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
   }).path;
 
-  const cliEntry = path.join(REPO_ROOT, 'dist', 'cli', 'index.js');
-  assert.ok(fs.existsSync(cliEntry), '编译产物 dist/cli/index.js 应存在');
+  const cliEntry = path.join(REPO_ROOT, 'dist', 'cli', 'describe.js');
+  assert.ok(fs.existsSync(cliEntry), '编译产物 dist/cli/describe.js 应存在');
 
   const { stdout, stderr, code } = await runNode(
-    [cliEntry, 'describe', img],
+    [cliEntry, img],
     '',
     cliEnv(configPath),
   );

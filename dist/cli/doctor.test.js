@@ -90,7 +90,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-happy-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
     const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
@@ -116,7 +116,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-noconfig-');
     const configPath = path.join(tmp, 'absent.json'); // 故意不创建
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
     const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
@@ -147,7 +147,7 @@ function writePluginJson(dir, manifest) {
     };
     fs.writeFileSync(configPath, JSON.stringify(partial));
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
     const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
@@ -174,7 +174,7 @@ function writePluginJson(dir, manifest) {
     };
     fs.writeFileSync(configPath, JSON.stringify(partial));
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
     const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
@@ -200,7 +200,7 @@ function writePluginJson(dir, manifest) {
     };
     fs.writeFileSync(configPath, JSON.stringify(partial));
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
     const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
@@ -219,7 +219,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-oldnode-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
     const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
@@ -235,12 +235,12 @@ function writePluginJson(dir, manifest) {
     assert.match(stdout.data, /Node[\s\S]*❌|node[\s\S]*❌/i);
     assert.match(stdout.data, /v18/);
 });
-(0, node_test_1.test)('doctor dist/ 缺少 cli/index.js → 该项 ❌（提示需要 npm run build）', async () => {
+(0, node_test_1.test)('doctor dist/ 缺少 cli/describe.js → 该项 ❌（提示需要 npm run build）', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-nodist-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    // 故意只放 describe.js，缺 cli/index.js
-    seedDist(distDir, ['core/describe.js']);
+    // 故意只放 init/doctor，缺 cli/describe.js
+    seedDist(distDir, ['cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
     const stderr = new fixtures_1.StringWritable();
     const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
@@ -254,7 +254,7 @@ function writePluginJson(dir, manifest) {
     });
     assert.notEqual(code, 0);
     assert.match(stdout.data, /dist[\s\S]*❌/);
-    assert.match(stdout.data, /cli\/index\.js/);
+    assert.match(stdout.data, /cli\/describe\.js/);
 });
 (0, node_test_1.test)('doctor 多项同时异常 → 结论列出总项数（每条异常贡献一次计数）', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-multi-');
@@ -283,7 +283,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-net-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     seedSchemaCache(cacheDir, fixtures_1.PLUGIN_SCHEMA_1_0_0);
@@ -314,7 +314,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-schema-ok-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     seedSchemaCache(cacheDir, fixtures_1.PLUGIN_SCHEMA_1_0_0);
@@ -338,7 +338,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-schema-bad-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, { ...VALID_PLUGIN_MANIFEST, name: 'Periscope' });
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     seedSchemaCache(cacheDir, fixtures_1.PLUGIN_SCHEMA_1_0_0);
@@ -363,7 +363,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-schema-degraded-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     // 不写 plugin.json、不种子缓存 → 冷缓存，fetchFn 抛错 → 降级 ⚠️
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     const stdout = new fixtures_1.StringWritable();
@@ -385,7 +385,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-cold-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     // 不种子缓存 → 走冷缓存路径；--offline 必须拒绝调用 fetchFn
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     let fetchCalls = 0;
@@ -425,7 +425,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-cached-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     seedSchemaCache(cacheDir, fixtures_1.PLUGIN_SCHEMA_1_0_0);
@@ -481,7 +481,7 @@ function writePluginJson(dir, manifest) {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-pos-');
     const configPath = writeFullConfig(tmp);
     const distDir = tmpDist();
-    seedDist(distDir, ['cli/index.js', 'core/describe.js']);
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
     let fetchCalls = 0;
     const shouldNotFetch = async () => {

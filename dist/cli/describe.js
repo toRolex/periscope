@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseDescribeArgs = parseDescribeArgs;
@@ -27,10 +28,10 @@ function parseDescribeArgs(argv) {
     return parsed;
 }
 function describeUsage() {
-    return '用法: periscope describe <图片路径或URL> [...] [--intent "描述内容"]';
+    return '用法: describe.js <图片路径或URL> [...] [--intent "描述内容"]';
 }
 /**
- * `periscope describe` 命令：解析参数 → 调核心 → 描述输出到 stdout，报错走 stderr + 非零退出码。
+ * describe 独立脚本：解析参数 → 调核心 → 描述输出到 stdout，报错走 stderr + 非零退出码。
  * stdout/stderr 可注入，便于测试直接调用。
  */
 async function runDescribe(argv, stdout, stderr) {
@@ -79,4 +80,12 @@ async function runDescribe(argv, stdout, stderr) {
         stderr.write(`错误: ${(0, shared_1.errorMessage)(err)}\n`);
         return 1;
     }
+}
+if (require.main === module) {
+    runDescribe(process.argv.slice(2), process.stdout, process.stderr).then((code) => {
+        process.exitCode = code;
+    }, (err) => {
+        process.stderr.write(`错误: ${(0, shared_1.errorMessage)(err)}\n`);
+        process.exitCode = 1;
+    });
 }

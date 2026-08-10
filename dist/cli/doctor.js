@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -39,6 +40,7 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const cache_1 = require("../cache");
 const plugin_schema_1 = require("./plugin-schema");
+const shared_1 = require("./shared");
 /** 解析 doctor 命令行参数。支持 `--offline`（位置无关）。 */
 function parseDoctorArgs(argv) {
     let offline = false;
@@ -54,7 +56,7 @@ function parseDoctorArgs(argv) {
     return { offline, rest };
 }
 const REQUIRED_PROTOCOLS = ['openai', 'anthropic', 'responses'];
-const REQUIRED_DIST_FILES = ['cli/index.js', 'core/describe.js'];
+const REQUIRED_DIST_FILES = ['cli/describe.js', 'cli/init.js', 'cli/doctor.js'];
 /** 从 `vX.Y.Z` 解析 major；非匹配返回 0。 */
 function parseMajor(version) {
     const m = /^v?(\d+)/.exec(version);
@@ -246,4 +248,16 @@ async function runDoctor(argv, stdout, stderr, options = {}) {
     }
     stdout.write(`结论: ❌ ${failCount} 项异常\n`);
     return 1;
+}
+if (require.main === module) {
+    runDoctor(process.argv.slice(2), process.stdout, process.stderr, {
+        HOME: process.env.HOME,
+        PERISCOPE_CONFIG: process.env.PERISCOPE_CONFIG,
+        nodeVersion: process.version,
+    }).then((code) => {
+        process.exitCode = code;
+    }, (err) => {
+        process.stderr.write(`错误: ${(0, shared_1.errorMessage)(err)}\n`);
+        process.exitCode = 1;
+    });
 }

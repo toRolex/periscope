@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import type { Writable } from 'node:stream';
 import { describeMany } from '../core/describe';
 import { errorMessage } from './shared';
@@ -28,11 +29,11 @@ export function parseDescribeArgs(argv: string[]): ParsedArgs {
 }
 
 export function describeUsage(): string {
-  return '用法: periscope describe <图片路径或URL> [...] [--intent "描述内容"]';
+  return '用法: describe.js <图片路径或URL> [...] [--intent "描述内容"]';
 }
 
 /**
- * `periscope describe` 命令：解析参数 → 调核心 → 描述输出到 stdout，报错走 stderr + 非零退出码。
+ * describe 独立脚本：解析参数 → 调核心 → 描述输出到 stdout，报错走 stderr + 非零退出码。
  * stdout/stderr 可注入，便于测试直接调用。
  */
 export async function runDescribe(
@@ -84,4 +85,16 @@ export async function runDescribe(
     stderr.write(`错误: ${errorMessage(err)}\n`);
     return 1;
   }
+}
+
+if (require.main === module) {
+  runDescribe(process.argv.slice(2), process.stdout, process.stderr).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (err) => {
+      process.stderr.write(`错误: ${errorMessage(err)}\n`);
+      process.exitCode = 1;
+    },
+  );
 }

@@ -1,9 +1,11 @@
+#!/usr/bin/env node
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { Readable, Writable } from 'node:stream';
 import { DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
 import { Protocol } from '../protocols/types';
+import { errorMessage } from './shared';
 
 export interface RunInitOptions {
   HOME?: string | undefined;
@@ -97,4 +99,19 @@ export async function runInit(
   fs.writeFileSync(configPath, JSON.stringify(next, null, 2) + '\n');
   stdout.write(`已写入配置: ${configPath}\n`);
   return 0;
+}
+
+if (require.main === module) {
+  runInit(process.argv.slice(2), process.stdin, process.stdout, process.stderr, {
+    HOME: process.env.HOME,
+    PERISCOPE_CONFIG: process.env.PERISCOPE_CONFIG,
+  }).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (err) => {
+      process.stderr.write(`错误: ${errorMessage(err)}\n`);
+      process.exitCode = 1;
+    },
+  );
 }

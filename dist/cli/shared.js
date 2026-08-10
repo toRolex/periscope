@@ -1,6 +1,6 @@
 "use strict";
 /**
- * CLI 公共工具：跨 describe / init / index 共用的 helper。
+ * CLI 公共工具：跨 describe / doctor / init 三个独立脚本共用的 helper。
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.errorMessage = errorMessage;

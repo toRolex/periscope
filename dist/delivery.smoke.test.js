@@ -43,8 +43,8 @@ const mock_server_1 = require("./testing/mock-server");
 const fixtures_1 = require("./testing/fixtures");
 const hook_1 = require("./testing/hook");
 const execFileP = (0, node_util_1.promisify)(node_child_process_1.execFile);
-/** 编译后测试位于 dist/，CLI 与 hook 入口即同目录产物。 */
-const CLI_ENTRY = path.join(__dirname, 'cli', 'index.js');
+/** 编译后测试位于 dist/，describe 独立脚本与 hook 入口即同目录产物。 */
+const DESCRIBE_ENTRY = path.join(__dirname, 'cli', 'describe.js');
 const HOOK_ENTRY = path.join(__dirname, 'hook', 'index.js');
 function smokeEnv(configPath) {
     return (0, fixtures_1.makeTestEnv)(configPath, {
@@ -64,8 +64,7 @@ function smokeEnv(configPath) {
         openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
-        CLI_ENTRY,
-        'describe',
+        DESCRIBE_ENTRY,
         imagePath,
         '--intent',
         '描述这张图片',
@@ -89,8 +88,7 @@ function smokeEnv(configPath) {
     }).path;
     const url = 'https://example.com/cat.png';
     const { stdout, stderr } = await execFileP(process.execPath, [
-        CLI_ENTRY,
-        'describe',
+        DESCRIBE_ENTRY,
         img1,
         url,
     ], { env: smokeEnv(configPath) });

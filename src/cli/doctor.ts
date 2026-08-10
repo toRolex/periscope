@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Writable } from 'node:stream';
@@ -9,6 +10,7 @@ import {
   pluginSchemaCachePath,
   validatePluginManifest,
 } from './plugin-schema';
+import { errorMessage } from './shared';
 
 export interface RunDoctorOptions {
   /** 覆盖 HOME（用于解析默认 config 路径）。 */
@@ -46,7 +48,7 @@ export function parseDoctorArgs(argv: string[]): { offline: boolean; rest: strin
 }
 
 const REQUIRED_PROTOCOLS = ['openai', 'anthropic', 'responses'] as const;
-const REQUIRED_DIST_FILES = ['cli/index.js', 'core/describe.js'];
+const REQUIRED_DIST_FILES = ['cli/describe.js', 'cli/init.js', 'cli/doctor.js'];
 
 /** 从 `vX.Y.Z` 解析 major；非匹配返回 0。 */
 function parseMajor(version: string): number {
@@ -285,4 +287,20 @@ export async function runDoctor(
   }
   stdout.write(`结论: ❌ ${failCount} 项异常\n`);
   return 1;
+}
+
+if (require.main === module) {
+  runDoctor(process.argv.slice(2), process.stdout, process.stderr, {
+    HOME: process.env.HOME,
+    PERISCOPE_CONFIG: process.env.PERISCOPE_CONFIG,
+    nodeVersion: process.version,
+  }).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (err) => {
+      process.stderr.write(`错误: ${errorMessage(err)}\n`);
+      process.exitCode = 1;
+    },
+  );
 }

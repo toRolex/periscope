@@ -131,8 +131,12 @@ function cliEnv(configPath) {
     const { frontmatter, body } = parseFrontmatter(md);
     assert.match(frontmatter, /^description:.+/m, 'frontmatter 应有 description（模型可自动调用 → 自动可用）');
     assert.match(frontmatter, /^allowed-tools:.+/m, 'frontmatter 应声明 allowed-tools');
-    assert.match(frontmatter, /Bash\(node \$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/index\.js \*\)/, 'allowed-tools 应允许经插件根变量运行编译 CLI');
-    assert.match(body, /\$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/index\.js describe/, 'body 应指令经插件根变量调用 CLI describe');
+    assert.match(frontmatter, /Bash\(node \$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/describe\.js \*\)/, 'allowed-tools 应允许经插件根变量运行编译 describe 独立脚本');
+    assert.match(body, /\$\{CLAUDE_PLUGIN_ROOT\}\/dist\/cli\/describe\.js/, 'body 应指令经插件根变量调用 describe 独立脚本');
+});
+(0, node_test_1.test)('AC2 package.json 不再声明 bin（periscope 命令分发器已删除）', () => {
+    const pkg = readJson(path.join(REPO_ROOT, 'package.json'));
+    assert.equal(pkg.bin, undefined, 'package.json 不应再声明 bin');
 });
 (0, node_test_1.test)('AC3 Codex 天然跳过：仓库不提供 .codex-plugin 清单，Codex 不加载 Claude Code hooks', () => {
     assert.equal(fs.existsSync(path.join(REPO_ROOT, '.codex-plugin')), false, '不应存在 .codex-plugin/，Codex 侧自然跳过');
@@ -172,9 +176,9 @@ function cliEnv(configPath) {
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
         openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
     }).path;
-    const cliEntry = path.join(REPO_ROOT, 'dist', 'cli', 'index.js');
-    assert.ok(fs.existsSync(cliEntry), '编译产物 dist/cli/index.js 应存在');
-    const { stdout, stderr, code } = await runNode([cliEntry, 'describe', img], '', cliEnv(configPath));
+    const cliEntry = path.join(REPO_ROOT, 'dist', 'cli', 'describe.js');
+    assert.ok(fs.existsSync(cliEntry), '编译产物 dist/cli/describe.js 应存在');
+    const { stdout, stderr, code } = await runNode([cliEntry, img], '', cliEnv(configPath));
     assert.equal(code, 0);
     assert.equal(stderr, '');
     assert.equal(stdout, 'mock 默认描述\n');

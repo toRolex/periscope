@@ -9,12 +9,14 @@ import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage, PLUGIN_SCHEMA_1_0_0 } from '../testing/fixtures';
 
 const execFileP = promisify(execFile);
-/** 编译后测试位于 dist/cli/，CLI 入口即同目录的 index.js。 */
-const CLI_ENTRY = path.join(__dirname, 'index.js');
+/** 编译后测试位于 dist/cli/，三个独立脚本入口即同目录的 describe.js / doctor.js / init.js（命令分发器 index.js 已删除）。 */
+const DESCRIBE_ENTRY = path.join(__dirname, 'describe.js');
+const DOCTOR_ENTRY = path.join(__dirname, 'doctor.js');
+const INIT_ENTRY = path.join(__dirname, 'init.js');
 
 function cliEnv(configPath: string): Record<string, string | undefined> {
   const env = makeTestEnv(configPath, { apiKey: 'sk-cli', homePrefix: 'periscope-cli-home-' });
-  // 预置一份新鲜的 schema 缓存 → CLI doctor 的 schema 检查走缓存，不发起真实网络请求。
+  // 预置一份新鲜的 schema 缓存 → doctor 的 schema 检查走缓存，不发起真实网络请求。
   const cacheDir = path.join(env.HOME ?? '', '.cache', 'periscope');
   fs.mkdirSync(cacheDir, { recursive: true });
   fs.writeFileSync(
@@ -24,7 +26,7 @@ function cliEnv(configPath: string): Record<string, string | undefined> {
   return { ...env, PERISCOPE_CACHE_DIR: cacheDir };
 }
 
-test('CLI describe 输出纯文本描述到 stdout 并以 0 退出', async (t) => {
+test('describe 脚本输出纯文本描述到 stdout 并以 0 退出', async (t) => {
   const server = await createMockServer({
     defaultBody: JSON.stringify({ choices: [{ message: { content: '一只猫' } }] }),
   });
@@ -37,8 +39,7 @@ test('CLI describe 输出纯文本描述到 stdout 并以 0 退出', async (t) =
   }).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     imagePath,
     '--intent',
     '看看猫',
@@ -54,13 +55,12 @@ test('CLI describe 输出纯文本描述到 stdout 并以 0 退出', async (t) =
   );
 });
 
-test('CLI 首次运行自动生成默认配置文件（openai + DashScope 端点）', async () => {
+test('describe 脚本首次运行自动生成默认配置文件（openai + DashScope 端点）', async () => {
   const dir = makeTempDir();
   const configPath = path.join(dir, 'fresh', 'config.json');
 
   const err: any = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     path.join(dir, 'nope.png'),
   ], { env: cliEnv(configPath) }).catch((e: unknown) => e);
 
@@ -75,11 +75,11 @@ test('CLI 首次运行自动生成默认配置文件（openai + DashScope 端点
   );
 });
 
-test('CLI 缺少图片路径 → stderr 报错 + 非零退出码', async () => {
+test('describe 脚本缺少图片路径 → stderr 报错 + 非零退出码', async () => {
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir).path;
 
-  const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'describe'], {
+  const err: any = await execFileP(process.execPath, [DESCRIBE_ENTRY], {
     env: cliEnv(configPath),
   }).catch((e: unknown) => e);
 
@@ -88,13 +88,12 @@ test('CLI 缺少图片路径 → stderr 报错 + 非零退出码', async () => {
   assert.match(err.stderr, /用法/);
 });
 
-test('CLI 图片不存在 → stderr 报错 + 非零退出码', async () => {
+test('describe 脚本图片不存在 → stderr 报错 + 非零退出码', async () => {
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir, { apiKey: 'sk' }).path;
 
   const err: any = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     path.join(dir, 'nope.png'),
   ], { env: cliEnv(configPath) }).catch((e: unknown) => e);
 
@@ -102,7 +101,7 @@ test('CLI 图片不存在 → stderr 报错 + 非零退出码', async () => {
   assert.match(err.stderr, /无法读取图片文件/);
 });
 
-test('CLI 端点返回 500 → stderr 报错 + 非零退出码', async (t) => {
+test('describe 脚本端点返回 500 → stderr 报错 + 非零退出码', async (t) => {
   const server = await createMockServer({
     defaultStatus: 500,
     defaultBody: 'server error',
@@ -115,7 +114,7 @@ test('CLI 端点返回 500 → stderr 报错 + 非零退出码', async (t) => {
     openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
   }).path;
 
-  const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'describe', imagePath], {
+  const err: any = await execFileP(process.execPath, [DESCRIBE_ENTRY, imagePath], {
     env: cliEnv(configPath),
   }).catch((e: unknown) => e);
 
@@ -123,22 +122,19 @@ test('CLI 端点返回 500 → stderr 报错 + 非零退出码', async (t) => {
   assert.match(err.stderr, /HTTP 500/);
 });
 
-test('CLI 未知命令 → stderr 用法 + 非零退出码', async () => {
-  const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'foo'], {
-    env: cliEnv(makeTempDir()),
-  }).catch((e: unknown) => e);
-
-  assert.notEqual(err.code, 0);
-  assert.match(err.stderr, /用法/);
+test('代码库中不存在 periscope 命令分发器（src/cli/index.ts 与编译产物 dist/cli/index.js 均不产出）', () => {
+  const srcDispatcher = path.join(__dirname, '..', '..', 'src', 'cli', 'index.ts');
+  const distDispatcher = path.join(__dirname, 'index.js');
+  assert.equal(fs.existsSync(srcDispatcher), false, 'src/cli/index.ts 应已删除');
+  assert.equal(fs.existsSync(distDispatcher), false, 'dist/cli/index.js 应已删除');
 });
 
-test('CLI doctor 子命令 → 全 OK 时 stdout 5 项 ✅ + 通过结论 + 退出码 0', async () => {
+test('doctor 脚本 → 全 OK 时 stdout 5 项 ✅ + 通过结论 + 退出码 0', async () => {
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'doctor',
+    DOCTOR_ENTRY,
   ], { env: cliEnv(configPath) });
 
   assert.equal(stderr, '');
@@ -147,11 +143,11 @@ test('CLI doctor 子命令 → 全 OK 时 stdout 5 项 ✅ + 通过结论 + 退�
   assert.match(stdout, /结论:\s*✅\s*全部通过/);
 });
 
-test('CLI doctor 子命令 → config 缺失时非零退出 + stdout 提示运行 init', async () => {
+test('doctor 脚本 → config 缺失时非零退出 + stdout 提示运行 init', async () => {
   const dir = makeTempDir();
   const configPath = path.join(dir, 'absent.json'); // 故意不创建
 
-  const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'doctor'], {
+  const err: any = await execFileP(process.execPath, [DOCTOR_ENTRY], {
     env: cliEnv(configPath),
   }).catch((e: unknown) => e);
 
@@ -161,7 +157,7 @@ test('CLI doctor 子命令 → config 缺失时非零退出 + stdout 提示运�
   assert.match(err.stdout, /periscope init/);
 });
 
-test('CLI doctor --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（不发起外部请求）', async () => {
+test('doctor 脚本 --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（不发起外部请求）', async () => {
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir).path;
   // 不种子缓存：构造一个隔离的 HOME，且不预置 schema 缓存 → 冷缓存
@@ -173,8 +169,7 @@ test('CLI doctor --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（
   delete (env as Record<string, string | undefined>).PERISCOPE_CACHE_DIR;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'doctor',
+    DOCTOR_ENTRY,
     '--offline',
   ], { env: env as Record<string, string | undefined> });
 
@@ -185,12 +180,12 @@ test('CLI doctor --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（
   assert.match(stdout, /⚠️ 根 plugin\.json schema/);
 });
 
-test('CLI init 子命令：目标配置已存在 → 拒绝 + 非零退出码（fork 端到端）', async () => {
+test('init 脚本：目标配置已存在 → 拒绝 + 非零退出码（fork 端到端）', async () => {
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir, { apiKey: 'preserved-key' }).path;
   const originalContent = fs.readFileSync(configPath).toString('utf8');
 
-  const err: any = await execFileP(process.execPath, [CLI_ENTRY, 'init'], {
+  const err: any = await execFileP(process.execPath, [INIT_ENTRY], {
     env: cliEnv(configPath),
     input: 'openai\nhttps://x\nm\nk',
   } as { env: Record<string, string | undefined>; input: string }).catch((e: unknown) => e);
@@ -201,7 +196,7 @@ test('CLI init 子命令：目标配置已存在 → 拒绝 + 非零退出码（
   assert.equal(afterContent, originalContent, 'fork 模式下已存在文件字节不变');
 });
 
-test('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {
+test('describe 脚本接受多张图片并按传入顺序聚合输出', async (t) => {
   const dir = makeTempDir();
   const img1 = writeFixtureImage(dir, 'a.png');
   const img2 = path.join(dir, 'b.png');
@@ -222,8 +217,7 @@ test('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {
   }).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     img1,
     img2,
   ], { env: cliEnv(configPath) });
@@ -233,7 +227,7 @@ test('CLI 接受多张图片并按传入顺序聚合输出', async (t) => {
   assert.equal(server.requests.length, 2);
 });
 
-test('CLI 多图一败一胜：stdout 保留成功描述，stderr 标注失败，退出码非零', async (t) => {
+test('describe 脚本多图一败一胜：stdout 保留成功描述，stderr 标注失败，退出码非零', async (t) => {
   const server = await createMockServer({
     defaultBody: JSON.stringify({ choices: [{ message: { content: '成功图描述' } }] }),
   });
@@ -247,8 +241,7 @@ test('CLI 多图一败一胜：stdout 保留成功描述，stderr 标注失败�
   }).path;
 
   const err: any = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     img1,
     missing,
   ], { env: cliEnv(configPath) }).catch((e: unknown) => e);
@@ -259,7 +252,7 @@ test('CLI 多图一败一胜：stdout 保留成功描述，stderr 标注失败�
   assert.equal(server.requests.length, 1, '缺失图不发起请求，成功图只请求一次');
 });
 
-test('CLI 接受 URL 远程图片并输出描述', async (t) => {
+test('describe 脚本接受 URL 远程图片并输出描述', async (t) => {
   const server = await createMockServer({
     defaultBody: JSON.stringify({ choices: [{ message: { content: 'URL 图描述' } }] }),
   });
@@ -272,8 +265,7 @@ test('CLI 接受 URL 远程图片并输出描述', async (t) => {
   const url = 'https://example.com/cat.png';
 
   const { stdout, stderr } = await execFileP(process.execPath, [
-    CLI_ENTRY,
-    'describe',
+    DESCRIBE_ENTRY,
     url,
   ], { env: cliEnv(configPath) });
 
