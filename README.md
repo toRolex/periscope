@@ -137,12 +137,12 @@ node dist/cli/describe.js <图片路径或URL> [...] [--intent "描述内容"]
 node dist/cli/init.js
 ```
 
-在**独立终端（TTY）**运行的交互式向导：↑/↓ 方向键选择协议（`openai` / `anthropic` / `responses`，回车确认）→ 逐项填写 `baseUrl` / `model` / `apiKey` → 展示配置摘要（已存在配置时附覆盖警告）→ 输入 `y` 确认覆盖写入 / 其他键放弃。写入路径 `PERISCOPE_CONFIG` 优先，否则 `~/.config/periscope/config.json`。
+在**独立终端（TTY）**运行的交互式向导：↑/↓ 方向键选择协议（`openai` / `anthropic` / `responses`，回车确认）→ 逐项填写 `baseUrl` / `model`（必填）与 `apiKey`（可留空）→ 展示配置摘要（已存在配置时附覆盖警告）→ 输入 `y` 确认覆盖写入 / 其他键放弃。写入路径 `PERISCOPE_CONFIG` 优先，否则 `~/.config/periscope/config.json`。
 
 行为要点：
 
-- **确认覆盖**：目标文件已存在时先展示摘要 + 覆盖警告，输入 `y` 才覆盖写入；输入其他字符放弃写入，现有配置保持不变。**没有默认值**——所有字段都需要用户输入。
-- `baseUrl` / `model` / `apiKey` 均**必填**，空输入报错退出（EOF 或 Ctrl+C 也立即终止，非零退出码）。
+- **确认覆盖**：目标文件已存在时先展示摘要 + 覆盖警告，输入 `y` 才覆盖写入；输入其他字符放弃写入，现有配置保持不变。**没有默认值**——`baseUrl` / `model` 需要用户输入；`apiKey` 可留空（本地无鉴权端点无需 key）。
+- `baseUrl` / `model` **必填**，空输入报错退出；`apiKey` **可选**，直接回车留空即可（Ollama / LM Studio 等本地端点不鉴权，无需填 key；留空写入后 describe 不发送鉴权头）。（EOF 或 Ctrl+C 也立即终止，非零退出码。）
 - **非 TTY（管道/重定向）环境拒绝运行**，报错提示需要在交互式终端中运行。
 - 写出的 JSON 包含 `protocol` / `apiKey` / `openai` / `anthropic` / `responses` 顶层字段；用户选中的协议段 `baseUrl` / `model` 取用户输入，其余协议段保留空白模板（空串）。
 
@@ -153,14 +153,14 @@ node dist/cli/init.js
 # ❯ openai
 #   anthropic
 #   responses
-# 请输入 baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-# 请输入 model: qwen-vl-max
-# 请输入 apiKey: sk-xxx
+# 请输入 baseUrl: http://localhost:11434/v1
+# 请输入 model: qwen2.5-vl
+# 请输入 apiKey: （本地无鉴权端点直接回车留空）
 # 配置摘要:
 #   协议: openai
-#   baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-#   model: qwen-vl-max
-#   apiKey: sk-xxx
+#   baseUrl: http://localhost:11434/v1
+#   model: qwen2.5-vl
+#   apiKey:
 # 确认写入？(y/n): y
 # 已写入配置: /Users/you/.config/periscope/config.json
 ```

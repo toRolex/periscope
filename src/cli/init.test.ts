@@ -214,18 +214,22 @@ test('init model 留空 → 拦截 + 非零退出，不写出配置', async () =
   assert.ok(!fs.existsSync(configPath), 'model 留空不应写出配置');
 });
 
-test('init apiKey 留空 → 拦截 + 非零退出，不写出配置', async () => {
+test('init apiKey 留空（回车直接提交）→ 完成写入，apiKey 为空串', async () => {
   const dir = makeTempDir('periscope-init-empty-apikey-');
   const configPath = path.join(dir, 'config.json');
-  const stdin = ttyStdin(interactiveChunks({ baseUrl: 'https://x', model: 'm', apiKey: '' }));
+  const stdin = ttyStdin(interactiveChunks({ baseUrl: 'http://localhost:1234/v1', model: 'm', apiKey: '' }));
   const stdout = new StringWritable();
   const stderr = new StringWritable();
 
   const code = await runInit([], stdin, stdout, stderr, { ...tmpEnv(), PERISCOPE_CONFIG: configPath });
 
-  assert.notEqual(code, 0);
-  assert.match(stderr.data, /apiKey.*不能为空|不能为空/);
-  assert.ok(!fs.existsSync(configPath), 'apiKey 留空不应写出配置');
+  assert.equal(code, 0, stderr.data);
+  const written = readWrittenConfig(configPath);
+  assert.equal(written.apiKey, '', 'apiKey 留空应写入空串');
+  const openai = written.openai as { baseUrl: string; model: string };
+  assert.equal(openai.baseUrl, 'http://localhost:1234/v1');
+  assert.equal(openai.model, 'm');
+  assert.match(stdout.data, /apiKey:\s*\n/, '摘要应展示 apiKey 为空');
 });
 
 test('init 填写完成后展示配置摘要（协议/baseUrl/model/apiKey），无既有配置时无覆盖警告', async () => {

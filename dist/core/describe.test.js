@@ -71,6 +71,22 @@ const fixtures_1 = require("../testing/fixtures");
     assert.equal(body.messages[0].content[1].type, 'image_url');
     assert.ok(body.messages[0].content[1].image_url.url.startsWith('data:image/png;base64,'));
 });
+(0, node_test_1.test)('describe 空 apiKey（本地无鉴权端点）→ 请求不携带鉴权头', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)();
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    const config = (0, fixtures_1.writeConfigFile)(dir, {
+        apiKey: '',
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    }).config;
+    const text = await (0, describe_1.describe)({ imagePath }, { config });
+    assert.equal(text, 'mock 默认描述');
+    assert.equal(server.requests.length, 1);
+    const req = server.requests[0];
+    assert.equal(req.headers['authorization'], undefined, '空 apiKey 不应发送 authorization 头');
+    assert.equal(req.headers['x-api-key'], undefined, '空 apiKey 不应发送 x-api-key 头');
+});
 (0, node_test_1.test)('describe 注入空白模板 config（baseUrl/model 为空串）时抛出可操作报错并提示运行 init', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);

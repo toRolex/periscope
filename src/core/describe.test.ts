@@ -43,6 +43,26 @@ test('describe 通过 mock 端点发送 openai 协议请求并提取文本', asy
   assert.ok(body.messages[0].content[1].image_url.url.startsWith('data:image/png;base64,'));
 });
 
+test('describe 空 apiKey（本地无鉴权端点）→ 请求不携带鉴权头', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const config = writeConfigFile(dir, {
+    apiKey: '',
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).config;
+
+  const text = await describe({ imagePath }, { config });
+
+  assert.equal(text, 'mock 默认描述');
+  assert.equal(server.requests.length, 1);
+  const req = server.requests[0];
+  assert.equal(req.headers['authorization'], undefined, '空 apiKey 不应发送 authorization 头');
+  assert.equal(req.headers['x-api-key'], undefined, '空 apiKey 不应发送 x-api-key 头');
+});
+
 test('describe 注入空白模板 config（baseUrl/model 为空串）时抛出可操作报错并提示运行 init', async () => {
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);

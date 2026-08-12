@@ -157,7 +157,7 @@ async function readField(nextKey, stdout, prompt) {
 }
 /**
  * init 脚本：交互式初始化向导（独立终端运行）。
- * 流程：方向键选择协议 → 填 baseUrl/model/apiKey（必填）→ 展示摘要 + 覆盖警告 → y/n 确认写入。
+ * 流程：方向键选择协议 → 填 baseUrl/model（必填）、apiKey（可选留空，本地无鉴权端点）→ 展示摘要 + 覆盖警告 → y/n 确认写入。
  * 写入路径 PERISCOPE_CONFIG 优先，否则 HOME 派生。stdin 非 TTY 时降级报错退出。
  */
 async function runInit(_argv, stdin, stdout, stderr, env) {
@@ -201,10 +201,7 @@ async function runInit(_argv, stdin, stdout, stderr, env) {
         stderr.write('错误: 输入流提前结束（EOF）\n');
         return 1;
     }
-    if (apiKey.trim() === '') {
-        stderr.write('错误: apiKey 不能为空\n');
-        return 1;
-    }
+    // apiKey 允许留空：本地无鉴权端点（Ollama / LM Studio 等）无需 key。
     const exists = fs.existsSync(configPath);
     stdout.write('\n配置摘要:\n');
     stdout.write(`  协议: ${protocol}\n`);
