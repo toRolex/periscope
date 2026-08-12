@@ -81,14 +81,15 @@ function readme() {
     assert.match(md, /方向键|↑\/↓|协议/);
     assert.doesNotMatch(md, /拒绝覆盖/, '新 init 语义为确认覆盖而非拒绝覆盖');
 });
-(0, node_test_1.test)('README 说明 doctor 脚本（5 项本地自检 / --offline 语义）', () => {
+(0, node_test_1.test)('README 说明 doctor 脚本（6 项本地自检 / --offline 语义）', () => {
     const md = readme();
     assert.match(md, /dist\/cli\/doctor\.js/);
     assert.match(md, /--offline/);
     assert.match(md, /离线模式/);
-    // 五项自检都提到
+    // 六项自检都提到
     assert.match(md, /config 文件|配置文件/);
     assert.match(md, /协议段/);
+    assert.match(md, /激活协议/);
     assert.match(md, /Node 版本/);
     assert.match(md, /dist\//);
     assert.match(md, /plugin\.json.*schema|schema.*plugin\.json/);

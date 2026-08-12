@@ -121,6 +121,39 @@ function checkProtocolSections(configPath: string): CheckResult {
   return { status: 'ok', detail: '协议段 openai / anthropic / responses 完整' };
 }
 
+/** 激活协议（config.protocol）端点非空检查（issue #21）：协议段结构完整但激活协议 baseUrl / model 为空时 ❌ 并引导 init。 */
+function checkActiveProtocol(configPath: string): CheckResult {
+  if (!fs.existsSync(configPath)) {
+    return { status: 'fail', detail: '配置文件不存在，无法校验激活协议' };
+  }
+  let cfg: Record<string, unknown>;
+  try {
+    cfg = JSON.parse(fs.readFileSync(configPath).toString('utf8')) as Record<string, unknown>;
+  } catch (err) {
+    return {
+      status: 'fail',
+      detail: `配置文件 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+  const protocol = cfg.protocol;
+  if (typeof protocol !== 'string' || protocol === '') {
+    return { status: 'fail', detail: '未设置激活协议 protocol，请运行 init 向导配置' };
+  }
+  const seg = cfg[protocol] as { baseUrl?: unknown; model?: unknown } | undefined;
+  const baseUrl = typeof seg?.baseUrl === 'string' ? seg.baseUrl.trim() : '';
+  const model = typeof seg?.model === 'string' ? seg.model.trim() : '';
+  const empty: string[] = [];
+  if (baseUrl === '') empty.push('baseUrl');
+  if (model === '') empty.push('model');
+  if (empty.length > 0) {
+    return {
+      status: 'fail',
+      detail: `${protocol} 端点未配置（${empty.join(' / ')} 为空），请运行 init 向导配置`,
+    };
+  }
+  return { status: 'ok', detail: `${protocol} 端点已配置（baseUrl / model 非空）` };
+}
+
 function checkNodeVersion(nodeVersion: string, repoRoot: string): CheckResult {
   const requiredMajor = parseNodeEngineMajor(path.join(repoRoot, 'package.json'));
   const actualMajor = parseMajor(nodeVersion);
@@ -234,11 +267,11 @@ const STATUS_ICON: Record<CheckResult['status'], string> = {
 };
 
 /**
- * doctor 脚本：本地自检（v1.1 实现，issue #12 + #13）。
- * 五项检查：config 文件存在 / 协议段完整 / Node 版本满足 engines.node / dist/ 编译产物完整 /
+ * doctor 脚本：本地自检（v1.2 实现，issue #12 + #13 + #21）。
+ * 六项检查：config 文件存在 / 协议段完整 / 激活协议端点非空（#21）/ Node 版本满足 engines.node / dist/ 编译产物完整 /
  * 根 plugin.json schema 合规（#13，schema 缓存 7 天，获取失败降级 ⚠️）。
  * 支持 `--offline`：禁止任何 schema 网络拉取，冷缓存时该项降级为 ⚠️ 并提示先联网跑一次 doctor 预热缓存；
- * 其余 4 项本地自检不受影响。
+ * 其余 5 项本地自检不受影响。
  */
 export async function runDoctor(
   argv: string[],
@@ -267,6 +300,7 @@ export async function runDoctor(
   const checks: { label: string; result: CheckResult }[] = [
     { label: 'config 文件', result: checkConfigFile(configPath) },
     { label: '协议段', result: checkProtocolSections(configPath) },
+    { label: '激活协议', result: checkActiveProtocol(configPath) },
     { label: 'Node 版本', result: checkNodeVersion(nodeVersion, repoRoot) },
     { label: 'dist/ 编译产物', result: checkDist(distDir) },
     { label: '根 plugin.json schema', result: schemaResult },

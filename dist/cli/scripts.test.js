@@ -150,15 +150,17 @@ function cliEnv(configPath) {
     assert.equal(fs.existsSync(srcDispatcher), false, 'src/cli/index.ts 应已删除');
     assert.equal(fs.existsSync(distDispatcher), false, 'dist/cli/index.js 应已删除');
 });
-(0, node_test_1.test)('doctor 脚本 → 全 OK 时 stdout 5 项 ✅ + 通过结论 + 退出码 0', async () => {
+(0, node_test_1.test)('doctor 脚本 → 全 OK 时 stdout 6 项 ✅ + 通过结论 + 退出码 0', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
-    const configPath = (0, fixtures_1.writeConfigFile)(dir).path;
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o' }, // 激活协议 openai 端点非空
+    }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DOCTOR_ENTRY,
     ], { env: cliEnv(configPath) });
     assert.equal(stderr, '');
     const okLines = stdout.split('\n').filter((l) => l.includes('✅') && !l.startsWith('结论:'));
-    assert.equal(okLines.length, 5, `应有 5 行 ✅，stdout：\n${stdout}`);
+    assert.equal(okLines.length, 6, `应有 6 行 ✅，stdout：\n${stdout}`);
     assert.match(stdout, /结论:\s*✅\s*全部通过/);
 });
 (0, node_test_1.test)('doctor 脚本 → config 缺失时非零退出 + stdout 提示运行 init.js 或 /set-up', async () => {
@@ -174,7 +176,9 @@ function cliEnv(configPath) {
 });
 (0, node_test_1.test)('doctor 脚本 --offline 冷缓存时仅本地自检 + schema 降级 ⚠️（不发起外部请求）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
-    const configPath = (0, fixtures_1.writeConfigFile)(dir).path;
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o' }, // 激活协议 openai 端点非空
+    }).path;
     // 不种子缓存：构造一个隔离的 HOME，且不预置 schema 缓存 → 冷缓存
     const isolatedHome = (0, fixtures_1.makeTempDir)('periscope-cli-offline-');
     const env = {
@@ -187,7 +191,7 @@ function cliEnv(configPath) {
         '--offline',
     ], { env: env });
     assert.equal(stderr, '');
-    // 4 项本地 ✅ + schema ⚠️ 离线降级（不输出 fetch/HTTP 等网络关键字）
+    // 5 项本地 ✅ + schema ⚠️ 离线降级（不输出 fetch/HTTP 等网络关键字）
     assert.doesNotMatch(stdout, /fetch|HTTP|timeout|ECONN|ENOTFOUND/i);
     assert.match(stdout, /离线模式/);
     assert.match(stdout, /⚠️ 根 plugin\.json schema/);

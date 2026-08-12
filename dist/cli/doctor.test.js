@@ -56,6 +56,16 @@ function writeFullConfig(dir, overrides = {}) {
     fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
     return filePath;
 }
+/** 写入「就绪」配置：激活协议 openai 的 baseUrl / model 非空（其余段沿用 DEFAULT_CONFIG 结构）。 */
+function writeReadyConfig(dir) {
+    const config = {
+        ...config_1.DEFAULT_CONFIG,
+        openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o' },
+    };
+    const filePath = path.join(dir, 'config.json');
+    fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
+    return filePath;
+}
 function seedDist(distDir, files) {
     for (const rel of files) {
         const full = path.join(distDir, rel);
@@ -86,9 +96,9 @@ function writePluginJson(dir, manifest) {
     fs.writeFileSync(filePath, JSON.stringify(manifest, null, 2));
     return filePath;
 }
-(0, node_test_1.test)('doctor 全部检查通过 → stdout 含 4 行 ✅ + 一行通过结论 + 退出码 0', async () => {
+(0, node_test_1.test)('doctor 全部检查通过 → stdout 含 5 行 ✅ + 一行通过结论 + 退出码 0', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-happy-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeReadyConfig(tmp); // 激活协议 openai 端点非空
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
@@ -104,11 +114,11 @@ function writePluginJson(dir, manifest) {
     });
     assert.equal(code, 0);
     assert.equal(stderr.data, '');
-    // 4 个 ✅ 检查行（不含结论行）。检查行格式：`<icon> <label>: <detail>`
+    // 5 个 ✅ 检查行（不含结论行）。检查行格式：`<icon> <label>: <detail>`
     const checkLines = stdout.data
         .split('\n')
         .filter((l) => l.includes('✅') && !l.startsWith('结论:'));
-    assert.equal(checkLines.length, 4, `应有 4 项 ✅ 检查行，实际：\n${stdout.data}`);
+    assert.equal(checkLines.length, 5, `应有 5 项 ✅ 检查行，实际：\n${stdout.data}`);
     // 一行结论
     assert.match(stdout.data, /结论:\s*✅\s*全部通过/);
 });
@@ -281,7 +291,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor 命中 schema 缓存时全程零外部请求（fetchFn 不被调用）', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-net-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeReadyConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
@@ -312,7 +322,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor 根 plugin.json 合规（schema 来源: 本地缓存）→ 该项 ✅ + 退出码 0', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-schema-ok-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeReadyConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
@@ -361,7 +371,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor schema 获取失败（冷缓存）→ 该项 ⚠️ 降级 + 退出码 0', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-schema-degraded-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeReadyConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     // 不写 plugin.json、不种子缓存 → 冷缓存，fetchFn 抛错 → 降级 ⚠️
@@ -383,7 +393,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor --offline 冷缓存时零外部请求（fetchFn 不被调用） + schema 项 ⚠️', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-cold-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeReadyConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     // 不种子缓存 → 走冷缓存路径；--offline 必须拒绝调用 fetchFn
@@ -410,20 +420,20 @@ function writePluginJson(dir, manifest) {
     // schema 项降级为 ⚠️ 并提示离线模式 + 跳过原因
     assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
     assert.match(stdout.data, /离线模式/);
-    // 其余 4 项本地自检不受 --offline 影响
+    // 其余 5 项本地自检不受 --offline 影响
     const otherLines = stdout.data
         .split('\n')
         .filter((l) => l.includes('✅') &&
         !l.startsWith('结论:') &&
         !l.includes('根 plugin.json schema'));
-    assert.ok(otherLines.length >= 4, `--offline 不影响其余 4 项本地自检，实际：\n${stdout.data}`);
+    assert.ok(otherLines.length >= 5, `--offline 不影响其余 5 项本地自检，实际：\n${stdout.data}`);
     assert.match(stdout.data, /结论:\s*✅\s*全部通过/);
     // 离线模式下输出不应出现 fetch/HTTP 等网络关键字
     assert.doesNotMatch(stdout.data, /fetch|HTTP|ECONN|ENOTFOUND/i);
 });
 (0, node_test_1.test)('doctor --offline 命中缓存时使用本地缓存校验（fetchFn 不被调用）', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-cached-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeReadyConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, VALID_PLUGIN_MANIFEST);
@@ -452,7 +462,7 @@ function writePluginJson(dir, manifest) {
     assert.match(stdout.data, /合规/);
     assert.doesNotMatch(stdout.data, /离线模式/);
 });
-(0, node_test_1.test)('doctor --offline 与其余 4 项异常可同时报告（offline 不抑制本地检查）', async () => {
+(0, node_test_1.test)('doctor --offline 与其余 5 项异常可同时报告（offline 不抑制本地检查）', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-multi-');
     const configPath = path.join(tmp, 'absent.json'); // 故意不创建 → config ❌
     const distDir = tmpDist(); // 空 dist → dist ❌
@@ -469,17 +479,17 @@ function writePluginJson(dir, manifest) {
         fetchFn: OFFLINE_FETCH,
     });
     assert.notEqual(code, 0);
-    // config + Node + dist 三项 ❌，schema 项 ⚠️（离线降级）
+    // config / 协议段 / 激活协议 / Node / dist 五项 ❌，schema 项 ⚠️（离线降级）
     const fails = stdout.data
         .split('\n')
         .filter((l) => l.includes('❌') && !l.startsWith('结论:')).length;
-    assert.ok(fails >= 3, `--offline 不抑制本地 ❌ 项，实际 ${fails}：\n${stdout.data}`);
+    assert.ok(fails >= 5, `--offline 不抑制本地 ❌ 项，实际 ${fails}：\n${stdout.data}`);
     assert.match(stdout.data, /⚠️ 根 plugin\.json schema/);
     assert.match(stdout.data, /离线模式/);
 });
 (0, node_test_1.test)('doctor --offline 紧贴其他参数也能识别（位置无关）', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-offline-pos-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeReadyConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-doctor-cache-');
@@ -500,4 +510,50 @@ function writePluginJson(dir, manifest) {
     });
     assert.equal(code, 0);
     assert.equal(fetchCalls, 0);
+});
+(0, node_test_1.test)('doctor config 存在但激活协议端点为空 → 该项 ❌ + 引导 init + 不误报全绿', async () => {
+    const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-active-empty-');
+    const configPath = writeFullConfig(tmp); // 三协议段结构完整，但 baseUrl / model 全为空串
+    const distDir = tmpDist();
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
+    const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
+        HOME: tmp,
+        PERISCOPE_CONFIG: configPath,
+        nodeVersion: 'v20.0.0',
+        distDir,
+        repoRoot: tmp,
+        cacheDir: (0, fixtures_1.makeTempDir)('periscope-doctor-cache-'),
+        fetchFn: OFFLINE_FETCH,
+    });
+    assert.notEqual(code, 0);
+    // 三协议段结构完整 → 协议段检查通过；但激活协议（默认 openai）端点为空 → 激活协议项 ❌
+    assert.match(stdout.data, /✅ 协议段/);
+    assert.match(stdout.data, /❌ 激活协议/);
+    assert.match(stdout.data, /openai/);
+    assert.match(stdout.data, /init/); // 引导运行 init
+    assert.doesNotMatch(stdout.data, /结论:\s*✅\s*全部通过/);
+    assert.match(stdout.data, /结论:\s*❌/);
+});
+(0, node_test_1.test)('doctor 激活协议端点已配置 → 该项 ✅ + 退出码 0', async () => {
+    const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-active-ok-');
+    const configPath = writeReadyConfig(tmp); // 激活协议 openai 的 baseUrl / model 非空
+    const distDir = tmpDist();
+    seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
+    const stdout = new fixtures_1.StringWritable();
+    const stderr = new fixtures_1.StringWritable();
+    const code = await (0, doctor_1.runDoctor)([], stdout, stderr, {
+        HOME: tmp,
+        PERISCOPE_CONFIG: configPath,
+        nodeVersion: 'v20.0.0',
+        distDir,
+        repoRoot: tmp,
+        cacheDir: (0, fixtures_1.makeTempDir)('periscope-doctor-cache-'),
+        fetchFn: OFFLINE_FETCH,
+    });
+    assert.equal(code, 0);
+    assert.match(stdout.data, /✅ 激活协议/);
+    assert.match(stdout.data, /openai/);
+    assert.match(stdout.data, /结论:\s*✅\s*全部通过/);
 });

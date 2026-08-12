@@ -171,13 +171,14 @@ node dist/cli/init.js
 node dist/cli/doctor.js [--offline]
 ```
 
-五项自检，全部纯本地（`--offline` 时连 schema 网络拉取也禁用）：
+六项自检，全部纯本地（`--offline` 时连 schema 网络拉取也禁用）：
 
 1. **config 文件**：检查默认路径（`PERISCOPE_CONFIG` / `~/.config/periscope/config.json`）文件存在性。
 2. **协议段**：检查 `config.json` 的 `openai` / `anthropic` / `responses` 段都有 `baseUrl` + `model`。
-3. **Node 版本**：与仓库 `package.json` 的 `engines.node` 比较（默认 `>=20`）。
-4. **dist/ 编译产物**：检查 `dist/cli/describe.js` + `dist/cli/init.js` + `dist/cli/doctor.js` 存在（零构建即用假设）。
-5. **根 `plugin.json` schema 合规**：按 [Agent Plugins 1.0.0](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json) 校验仓库根 `plugin.json`。
+3. **激活协议**：检查 `config.protocol` 对应的激活协议段 `baseUrl` / `model` 非空，为空时 ❌ 并引导运行 `init`。
+4. **Node 版本**：与仓库 `package.json` 的 `engines.node` 比较（默认 `>=20`）。
+5. **dist/ 编译产物**：检查 `dist/cli/describe.js` + `dist/cli/init.js` + `dist/cli/doctor.js` 存在（零构建即用假设）。
+6. **根 `plugin.json` schema 合规**：按 [Agent Plugins 1.0.0](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json) 校验仓库根 `plugin.json`。
 
 逐项输出 `✅ / ⚠️ / ❌` + 一行结论；`❌` 项数 = 退出码是否为零。
 
@@ -185,7 +186,7 @@ node dist/cli/doctor.js [--offline]
 
 - 缓存有效（7 天 TTL 内）→ 用本地缓存校验，输出 `✅ 根 plugin.json schema 合规（schema 来源: 本地缓存）`。
 - 缓存缺失或过期 → 降级 `⚠️ 离线模式：schema 未缓存，跳过校验（可先联网跑一次 doctor 预热缓存）`，**不发任何 fetch**。
-- 其余 4 项本地自检不受 `--offline` 影响，仍照常输出。
+- 其余 5 项本地自检不受 `--offline` 影响，仍照常输出。
 
 **默认行为（不传 `--offline`）**：冷缓存时 schema 项会拉一次远程 schema（成功后续命中本地缓存 7 天）；拉取失败降级 `⚠️`，不硬失败。
 
