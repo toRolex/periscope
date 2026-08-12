@@ -2,6 +2,8 @@
 
 给纯文本 coding agent 的视觉桥插件（MVP）。把本地图片 / 远程图片 URL / 用户在 Claude Code 里的贴图，转成文字描述，喂给只吃文本的 agent。零构建、零额外运行时依赖，`dist/` 已随仓库提交。
 
+periscope 采用 **BYOM（bring your own model）** 定位：**不绑定任何服务商**，视觉模型完全由你自带——本地 Ollama / LM Studio、自建网关、任意 OpenAI 兼容云端端点皆可。运行 `init` 向导填入你的 `baseUrl` / `model`（`apiKey` 可留空）即可接入（见「配置」）。
+
 ```
 image ──▶ describe.js ──▶ 外部视觉 LLM（openai / anthropic / responses）──▶ 文字描述
 ```
@@ -52,6 +54,8 @@ node dist/cli/describe.js ./demo.png
 ## 配置
 
 配置文件路径：**`~/.config/periscope/config.json`**。首次运行任意命令时会**懒创建空白模板配置**（见下），需用 `init` 向导或手改填入你自己的视觉端点；用环境变量 `PERISCOPE_CONFIG` 可覆盖配置路径。
+
+periscope 是 **BYOM（bring your own model）** 插件：**不绑定任何服务商**，不默认指向任何供应商端点。`baseUrl` / `model` 由你提供，通过 **`node dist/cli/init.js`** 交互式向导填写（`apiKey` 可留空，见「`init`」一节）；本地 Ollama / LM Studio / 自建网关 / 任意云端端点皆可接入。
 
 首次懒创建写入的空白模板（三协议 `baseUrl` / `model` 均为空串，**不绑定任何服务商**）：
 
@@ -128,8 +132,27 @@ node dist/cli/describe.js <图片路径或URL> [...] [--intent ocr|table|chart|"
 ```
 
 - `<图片路径或URL>`：本地图片路径或 `http(s)` 图片 URL，可传多个，空格分隔。
-- `--intent ...`（可选）：内置任务模板名 `ocr`（提取文字）/ `table`（转 Markdown 表格）/ `chart`（图表转结构化描述），命中模板名时使用内置 prompt；其他文本原样透传给模型，如 `--intent "读取图片中的报错信息"`；缺省保持默认描述文案。
+- `--intent ...`（可选）：内置任务模板名 `ocr` / `table` / `chart`（见下「任务模板」），命中模板名时使用内置 prompt；其他文本原样透传给模型，如 `--intent "读取图片中的报错信息"`；缺省保持默认描述文案。
 - 插件环境里用 `node ${CLAUDE_PLUGIN_ROOT}/dist/cli/describe.js <图片路径或URL> [...]`。
+
+### `describe` 任务模板（ocr / table / chart）
+
+`--intent` 支持三个内置命名任务模板，命中模板名时使用内置 prompt：
+
+| 模板名 | 作用 | 内置 prompt |
+| ------ | ---- | ----------- |
+| `ocr`   | 提取图片中的全部文字 | `提取图片中的全部文字内容` |
+| `table` | 把图片中的表格转换为 Markdown 表格 | `把图片中的表格转换为 Markdown 表格` |
+| `chart` | 把图片中的图表转换为结构化文字描述 | `把图片中的图表转换为结构化文字描述` |
+
+```bash
+# 用法示例：模板名作 --intent 参数
+node dist/cli/describe.js ./截图.png --intent ocr
+node dist/cli/describe.js ./表格.png --intent table
+node dist/cli/describe.js ./柱状图.png --intent chart
+```
+
+非模板文本原样透传给模型，如 `--intent "读取图片中的报错信息"`；缺省（不传 `--intent`）保持默认描述文案。
 
 ### `init` — 交互式初始化配置
 

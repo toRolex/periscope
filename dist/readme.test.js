@@ -74,6 +74,22 @@ function readme() {
     assert.match(md, /--intent/);
     assert.match(md, /URL/);
 });
+(0, node_test_1.test)('README 说明 BYOM 定位（bring your own model，不绑定服务商 + 运行 init 填写端点）', () => {
+    const md = readme();
+    assert.match(md, /BYOM|bring your own model/i, 'README 应明示 BYOM（bring your own model）定位');
+    assert.match(md, /不绑定任何服务商|不预绑任何服务商|不默认指向任何服务商|不预设任何服务商/, 'README 应声明不绑定服务商');
+    assert.match(md, /init/, 'README 应说明通过 init 填写端点');
+});
+(0, node_test_1.test)('README 列出 ocr / table / chart 任务模板用法（独立小节 + 三模板用途）', () => {
+    const md = readme();
+    assert.match(md, /^#{2,4} .*任务模板/m, 'README 应有独立任务模板小节');
+    assert.match(md, /ocr/, '应列出 ocr 模板');
+    assert.match(md, /table/, '应列出 table 模板');
+    assert.match(md, /chart/, '应列出 chart 模板');
+    assert.match(md, /提取图片中的全部文字/, '应说明 ocr 用途');
+    assert.match(md, /Markdown 表格/, '应说明 table 用途');
+    assert.match(md, /图表/, '应说明 chart 用途');
+});
 (0, node_test_1.test)('README 说明 init 脚本（交互式向导 / 方向键选协议 / 必填 / 确认覆盖）', () => {
     const md = readme();
     assert.match(md, /dist\/cli\/init\.js/);

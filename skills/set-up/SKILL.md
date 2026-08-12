@@ -1,6 +1,6 @@
 ---
 name: set-up
-description: 安装后初始化配置引导。刚安装 periscope 插件、需要生成或修改 ~/.config/periscope/config.json 时使用：引导用户在独立终端运行 init 脚本完成配置，解释协议与 apiKey 选项，最后用 doctor 验证配置可被正确读取。仅用户主动调用（/set-up），模型不得擅自触发。
+description: 安装后初始化配置引导。刚安装 periscope 插件、需要生成或修改 ~/.config/periscope/config.json 时使用：引导用户在独立终端运行 init 脚本完成配置，解释协议与 apiKey 选项（BYOM，不绑定服务商），最后用 doctor 验证配置可被正确读取。仅用户主动调用（/set-up），模型不得擅自触发。
 disable-model-invocation: true
 allowed-tools:
   - Bash(echo ${CLAUDE_PLUGIN_ROOT})
@@ -24,12 +24,13 @@ allowed-tools:
    用户在独立终端里会看到交互式向导：↑/↓ 方向键选择协议 → 逐项填写 baseUrl / model / apiKey → 确认 y/n 覆盖写入。等用户跑完并确认后，再进入下一步。
 
 3. **解释协议与 apiKey 选项**（用户跑 init 前后都可以讲）：
+   - **BYOM 定位**：periscope **不绑定任何服务商**（BYOM，bring your own model）——本地 Ollama / LM Studio、自建网关、任意 OpenAI 兼容云端端点皆可，端点与模型完全由用户自己提供。
    - **协议（protocol）**：三选一，决定请求形态——
-     - `openai`（默认）：兼容 OpenAI chat/completions 格式，默认指向阿里云百炼 DashScope 的 `qwen-vl-max`。
+     - `openai`（默认，仅指请求形状）：兼容 OpenAI chat/completions 格式，`baseUrl` / `model` 由用户自行填写，不绑定任何服务商。
      - `anthropic`：走 Anthropic Messages API（`x-api-key` 鉴权）。
      - `responses`：走 OpenAI Responses API。
-   - **baseUrl / model**：每个协议独立的端点与模型，按实际使用的服务填写。
-   - **apiKey**：视觉端点的密钥，**必填**。init 会把它写进 `~/.config/periscope/config.json`；也可以用环境变量 `PERISCOPE_API_KEY` 覆盖（优先级高于配置文件）。
+   - **baseUrl / model**：每个协议独立的端点与模型，按实际使用的服务填写，**必填**。
+   - **apiKey**：视觉端点的密钥，**可选（可留空）**。本地无鉴权端点（Ollama / LM Studio 等）直接回车留空即可；留空写入后 describe 不发送鉴权头。init 会把它写进 `~/.config/periscope/config.json`；也可以用环境变量 `PERISCOPE_API_KEY` 覆盖（优先级高于配置文件）。
 
 4. **收尾：跑 doctor 验证配置**：用户确认 init 已完成并贴回输出（或回复完成）后，运行：
 
@@ -37,9 +38,9 @@ allowed-tools:
    node ${CLAUDE_PLUGIN_ROOT}/dist/cli/doctor.js
    ```
 
-   逐项核对输出：`config 文件` / `协议段` / `Node 版本` / `dist/ 编译产物` / `根 plugin.json schema`。
+   逐项核对输出：`config 文件` / `协议段` / `激活协议` / `Node 版本` / `dist/ 编译产物` / `根 plugin.json schema`。
    - 全部 `✅` 且结论为「全部通过」→ 向用户报告配置就绪。
-   - `config 文件` 或 `协议段` 出现 `❌` → 说明配置未正确写入，引导用户重新跑 init 后再次验证。
+   - `config 文件` / `协议段` / `激活协议` 任一出现 `❌` → 说明配置未正确写入，引导用户重新跑 init 后再次验证。
 
 ## 边界
 
