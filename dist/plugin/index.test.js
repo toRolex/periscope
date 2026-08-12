@@ -38,7 +38,6 @@ const assert = __importStar(require("node:assert"));
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const node_child_process_1 = require("node:child_process");
-const config_1 = require("../config/config");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
 /**
@@ -147,7 +146,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const img = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const hooksFile = readJson(HOOKS_FILE);
     const flatHooks = hooksFile.hooks.UserPromptSubmit.flatMap((e) => e.hooks ?? []);
@@ -174,7 +173,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const img = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const cliEntry = path.join(REPO_ROOT, 'dist', 'cli', 'describe.js');
     assert.ok(fs.existsSync(cliEntry), '编译产物 dist/cli/describe.js 应存在');

@@ -3,7 +3,6 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe } from './describe';
-import { DEFAULT_CONFIG } from '../config/config';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 
@@ -14,7 +13,7 @@ function setup(server: { baseUrl: string }) {
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     apiKey: 'sk-cache',
-    openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
   }).config;
   return { dir, cacheDir, imagePath, config };
 }

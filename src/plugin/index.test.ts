@@ -3,7 +3,6 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
-import { DEFAULT_CONFIG } from '../config/config';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 
@@ -159,7 +158,7 @@ test('AC4 契约执行冒烟：hooks.json 声明的 exec 命令可解析并注�
   const dir = makeTempDir();
   const img = writeFixtureImage(dir, 'a.png');
   const configPath = writeConfigFile(dir, {
-    openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
   }).path;
 
   const hooksFile = readJson(HOOKS_FILE) as {
@@ -200,7 +199,7 @@ test('AC4 契约执行冒烟：skill 指令的 CLI 命令可解析并输出描�
   const dir = makeTempDir();
   const img = writeFixtureImage(dir, 'a.png');
   const configPath = writeConfigFile(dir, {
-    openai: { ...DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
   }).path;
 
   const cliEntry = path.join(REPO_ROOT, 'dist', 'cli', 'describe.js');

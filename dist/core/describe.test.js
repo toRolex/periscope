@@ -37,7 +37,6 @@ const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const path = __importStar(require("node:path"));
 const describe_1 = require("./describe");
-const config_1 = require("../config/config");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
 // describe 默认开启本地缓存，把 PERISCOPE_CACHE_DIR 指向临时目录，
@@ -57,7 +56,7 @@ const fixtures_1 = require("../testing/fixtures");
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         apiKey: 'sk-core',
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath }, { config });
     assert.equal(text, '图片里有一座山');
@@ -68,9 +67,40 @@ const fixtures_1 = require("../testing/fixtures");
     assert.equal(req.headers['authorization'], 'Bearer sk-core');
     assert.equal(req.headers['content-type'], 'application/json');
     const body = req.jsonBody;
-    assert.equal(body.model, 'qwen-vl-max');
+    assert.equal(body.model, 'vision-model');
     assert.equal(body.messages[0].content[1].type, 'image_url');
     assert.ok(body.messages[0].content[1].image_url.url.startsWith('data:image/png;base64,'));
+});
+(0, node_test_1.test)('describe 注入空白模板 config（baseUrl/model 为空串）时抛出可操作报错并提示运行 init', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    const config = (0, fixtures_1.writeConfigFile)(dir).config; // 空白模板：三协议 baseUrl/model 均为空串
+    await assert.rejects((0, describe_1.describe)({ imagePath }, { config }), /协议 openai 未配置 baseUrl\/model，请运行 init/);
+});
+(0, node_test_1.test)('describe 空白模板 + 图片不存在：优先报未配置端点而非读图失败', async () => {
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config; // 空白模板
+    const missing = path.join((0, fixtures_1.makeTempDir)(), 'missing.png');
+    await assert.rejects((0, describe_1.describe)({ imagePath: missing }, { config }), /协议 openai 未配置 baseUrl\/model，请运行 init/);
+});
+(0, node_test_1.test)('describe 空端点 config 时不发起任何请求（transport 不被调用）', async () => {
+    let calls = 0;
+    const fakeTransport = {
+        async post() {
+            calls += 1;
+            return { status: 200, ok: true, text: '{}' };
+        },
+    };
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config; // 空白模板
+    await assert.rejects((0, describe_1.describe)({ imagePath: 'https://example.com/cat.png' }, { config, transport: fakeTransport }), /未配置 baseUrl\/model/);
+    assert.equal(calls, 0, '空端点不应发出请求');
+});
+(0, node_test_1.test)('describe 只缺 baseUrl 时同样报错并提示运行 init', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    const config = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { baseUrl: '', model: 'vision-model' },
+    }).config;
+    await assert.rejects((0, describe_1.describe)({ imagePath }, { config }), /协议 openai 未配置 baseUrl\/model，请运行 init/);
 });
 (0, node_test_1.test)('describe 透传 intent 到 text 部分', async (t) => {
     const server = await (0, mock_server_1.createMockServer)();
@@ -78,7 +108,7 @@ const fixtures_1 = require("../testing/fixtures");
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     await (0, describe_1.describe)({ imagePath, intent: '用中文描述颜色' }, { config });
     const body = server.requests[0].jsonBody;
@@ -93,7 +123,7 @@ const fixtures_1 = require("../testing/fixtures");
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     await assert.rejects((0, describe_1.describe)({ imagePath }, { config }), /HTTP 401/);
 });
@@ -106,14 +136,17 @@ const fixtures_1 = require("../testing/fixtures");
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath }, { config });
     assert.equal(text, '这是一个纯文本描述');
 });
-(0, node_test_1.test)('describe 图片文件不存在时抛错', async () => {
+(0, node_test_1.test)('describe 图片文件不存在时抛错（端点已配置）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
-    const config = (0, fixtures_1.writeConfigFile)(dir, { apiKey: 'sk' }).config;
+    const config = (0, fixtures_1.writeConfigFile)(dir, {
+        apiKey: 'sk',
+        openai: { baseUrl: 'https://example.com', model: 'vision-model' },
+    }).config;
     await assert.rejects((0, describe_1.describe)({ imagePath: path.join(dir, 'missing.png') }, { config }), /无法读取图片文件/);
 });
 (0, node_test_1.test)('describe 接受 http(s) URL 图片：请求 body 的 image_url.url 透传该 URL', async (t) => {
@@ -122,7 +155,7 @@ const fixtures_1 = require("../testing/fixtures");
     const dir = (0, fixtures_1.makeTempDir)();
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         apiKey: 'sk-core',
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath: 'https://example.com/cat.png' }, { config });
     assert.equal(text, 'mock 默认描述');
@@ -131,7 +164,7 @@ const fixtures_1 = require("../testing/fixtures");
     assert.equal(body.messages[0].content[1].image_url.url, 'https://example.com/cat.png');
 });
 (0, node_test_1.test)('describeMany 并行请求多图并按输入顺序聚合', async () => {
-    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
     const fakeTransport = {
         async post(req) {
             const url = req.body.messages[0].content[1].image_url.url;
@@ -156,7 +189,7 @@ const fixtures_1 = require("../testing/fixtures");
     assert.equal(results[1].error, undefined);
 });
 (0, node_test_1.test)('describeMany 逐图容错：单图失败不丢其余成功结果', async () => {
-    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
     const fakeTransport = {
         async post(req) {
             const url = req.body.messages[0].content[1].image_url.url;
@@ -183,7 +216,7 @@ const fixtures_1 = require("../testing/fixtures");
     assert.match(results[1].error ?? '', /HTTP 500/);
 });
 (0, node_test_1.test)('describeMany 多图同时发起请求（并行度）', async () => {
-    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
     let active = 0;
     let maxActive = 0;
     const fakeTransport = {
@@ -213,7 +246,7 @@ const fixtures_1 = require("../testing/fixtures");
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
         apiKey: 'sk-file',
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const pathBefore = process.env.PERISCOPE_CONFIG;
     const keyBefore = process.env.PERISCOPE_API_KEY;
@@ -247,7 +280,7 @@ const fixtures_1 = require("../testing/fixtures");
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         protocol: 'anthropic',
         apiKey: 'sk-ant-core',
-        anthropic: { ...config_1.DEFAULT_CONFIG.anthropic, baseUrl: server.baseUrl },
+        anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath }, { config });
     assert.equal(text, '图片里有一座山');
@@ -259,7 +292,7 @@ const fixtures_1 = require("../testing/fixtures");
     assert.equal(req.headers['anthropic-version'], '2023-06-01');
     assert.equal(req.headers['content-type'], 'application/json');
     const body = req.jsonBody;
-    assert.equal(body.model, config_1.DEFAULT_CONFIG.anthropic.model);
+    assert.equal(body.model, 'vision-model');
     assert.equal(body.messages[0].content[0].text, '描述这张图片');
     assert.equal(body.messages[0].content[1].type, 'image');
     assert.equal(body.messages[0].content[1].source.type, 'base64');
@@ -285,7 +318,7 @@ const fixtures_1 = require("../testing/fixtures");
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         protocol: 'responses',
         apiKey: 'sk-resp-core',
-        responses: { ...config_1.DEFAULT_CONFIG.responses, baseUrl: server.baseUrl },
+        responses: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath }, { config });
     assert.equal(text, '图片里有一条河');
@@ -296,7 +329,7 @@ const fixtures_1 = require("../testing/fixtures");
     assert.equal(req.headers['authorization'], 'Bearer sk-resp-core');
     assert.equal(req.headers['content-type'], 'application/json');
     const body = req.jsonBody;
-    assert.equal(body.model, config_1.DEFAULT_CONFIG.responses.model);
+    assert.equal(body.model, 'vision-model');
     assert.equal(body.input[0].content[0].type, 'input_text');
     assert.equal(body.input[0].content[0].text, '描述这张图片');
     assert.equal(body.input[0].content[1].type, 'input_image');
@@ -312,7 +345,7 @@ const fixtures_1 = require("../testing/fixtures");
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         protocol: 'anthropic',
-        anthropic: { ...config_1.DEFAULT_CONFIG.anthropic, baseUrl: server.baseUrl },
+        anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath }, { config });
     assert.equal(text, '纯文本的 anthropic 描述');
@@ -327,7 +360,7 @@ const fixtures_1 = require("../testing/fixtures");
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         protocol: 'responses',
-        responses: { ...config_1.DEFAULT_CONFIG.responses, baseUrl: server.baseUrl },
+        responses: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath }, { config });
     assert.equal(text, '纯文本的 responses 描述');
@@ -342,7 +375,7 @@ const fixtures_1 = require("../testing/fixtures");
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         protocol: 'anthropic',
-        anthropic: { ...config_1.DEFAULT_CONFIG.anthropic, baseUrl: server.baseUrl },
+        anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     await assert.rejects((0, describe_1.describe)({ imagePath }, { config }), /HTTP 429/);
 });
@@ -357,7 +390,7 @@ const fixtures_1 = require("../testing/fixtures");
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         protocol: 'anthropic',
         apiKey: 'sk-ant-core',
-        anthropic: { ...config_1.DEFAULT_CONFIG.anthropic, baseUrl: server.baseUrl },
+        anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     const text = await (0, describe_1.describe)({ imagePath: 'https://example.com/cat.png' }, { config });
     assert.equal(text, 'URL 图描述');

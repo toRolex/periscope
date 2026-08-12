@@ -37,7 +37,6 @@ const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const path = __importStar(require("node:path"));
 const index_1 = require("./index");
-const config_1 = require("../config/config");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
 const hook_1 = require("../testing/hook");
@@ -51,7 +50,7 @@ function hookEnv(configPath, cacheDir) {
     });
 }
 (0, node_test_1.test)('describeImageEntries 并行逐图容错：单图失败置 null 不阻塞其余', async () => {
-    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
     let active = 0;
     let maxActive = 0;
     const fakeTransport = {
@@ -116,7 +115,7 @@ function hookEnv(configPath, cacheDir) {
     assert.equal(output.hookSpecificOutput.additionalContext, '', '带 hookSpecificOutput 时 additionalContext 必填，无图片注入空串');
 });
 (0, node_test_1.test)('handleHookInput 注入 additionalContext 并放行', async () => {
-    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)()).config;
+    const config = (0, fixtures_1.writeConfigFile)((0, fixtures_1.makeTempDir)(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
     const fakeTransport = {
         async post(req) {
             const url = req.body.messages[0].content[1].image_url.url;
@@ -146,7 +145,7 @@ function hookEnv(configPath, cacheDir) {
     const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const img2 = (0, fixtures_1.writeFixtureImage)(dir, 'b.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const stdin = JSON.stringify({
         session_id: 'abc123',
@@ -172,7 +171,7 @@ function hookEnv(configPath, cacheDir) {
     const dir = (0, fixtures_1.makeTempDir)();
     const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const stdin = JSON.stringify({
         hook_event_name: 'UserPromptSubmit',
@@ -200,7 +199,7 @@ function hookEnv(configPath, cacheDir) {
     const dir = (0, fixtures_1.makeTempDir)();
     const img = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const cacheDir = (0, fixtures_1.makeTempDir)('periscope-hook-cache-');
     const env = hookEnv(configPath, cacheDir);

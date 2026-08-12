@@ -38,7 +38,6 @@ const assert = __importStar(require("node:assert"));
 const path = __importStar(require("node:path"));
 const node_child_process_1 = require("node:child_process");
 const node_util_1 = require("node:util");
-const config_1 = require("./config/config");
 const mock_server_1 = require("./testing/mock-server");
 const fixtures_1 = require("./testing/fixtures");
 const hook_1 = require("./testing/hook");
@@ -61,7 +60,7 @@ function smokeEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -84,7 +83,7 @@ function smokeEnv(configPath) {
     });
     t.after(() => server.close());
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const url = 'https://example.com/cat.png';
     const { stdout, stderr } = await execFileP(process.execPath, [
@@ -105,7 +104,7 @@ function smokeEnv(configPath) {
     const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const img2 = (0, fixtures_1.writeFixtureImage)(dir, 'b.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const stdin = JSON.stringify({
         session_id: 'smoke-1',

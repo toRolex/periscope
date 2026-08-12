@@ -104,7 +104,7 @@ function readWrittenConfig(configPath) {
     const openai = written.openai;
     assert.equal(openai.baseUrl, 'https://x.example/v1');
     assert.equal(openai.model, 'model-x');
-    // 未选中的协议段保留 DEFAULT_CONFIG 完整 baseUrl + model
+    // 未选中的协议段保留 DEFAULT_CONFIG 空白模板（baseUrl/model 为空串）
     assert.deepEqual(written.anthropic, config_1.DEFAULT_CONFIG.anthropic);
     assert.deepEqual(written.responses, config_1.DEFAULT_CONFIG.responses);
 });

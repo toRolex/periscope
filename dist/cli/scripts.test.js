@@ -39,7 +39,6 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const node_child_process_1 = require("node:child_process");
 const node_util_1 = require("node:util");
-const config_1 = require("../config/config");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
 const execFileP = (0, node_util_1.promisify)(node_child_process_1.execFile);
@@ -63,7 +62,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -77,7 +76,7 @@ function cliEnv(configPath) {
     assert.equal(body.messages[0].content[0].text, '看看猫');
     assert.equal(body.messages[0].content[1].image_url.url.startsWith('data:image/png;base64,'), true);
 });
-(0, node_test_1.test)('describe 脚本首次运行自动生成默认配置文件（openai + DashScope 端点）', async () => {
+(0, node_test_1.test)('describe 脚本首次运行自动生成空白模板配置文件（三协议 baseUrl/model 为空串）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'fresh', 'config.json');
     const err = await execFileP(process.execPath, [
@@ -89,7 +88,21 @@ function cliEnv(configPath) {
     const written = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
     assert.equal(written.protocol, 'openai');
     assert.equal(written.apiKey, '');
-    assert.equal(written.openai.baseUrl, 'https://dashscope.aliyuncs.com/compatible-mode/v1');
+    assert.equal(written.openai.baseUrl, '');
+    assert.equal(written.openai.model, '');
+    assert.equal(written.anthropic.baseUrl, '');
+    assert.equal(written.responses.model, '');
+});
+(0, node_test_1.test)('describe 脚本未配置端点（空白模板）→ stderr 报错提示运行 init + 非零退出码', async () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    const configPath = (0, fixtures_1.writeConfigFile)(dir).path; // 空白模板：三协议 baseUrl/model 为空串
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    const err = await execFileP(process.execPath, [
+        DESCRIBE_ENTRY,
+        imagePath,
+    ], { env: cliEnv(configPath) }).catch((e) => e);
+    assert.notEqual(err.code, 0);
+    assert.match(err.stderr, /协议 openai 未配置 baseUrl\/model，请运行 init/);
 });
 (0, node_test_1.test)('describe 脚本缺少图片路径 → stderr 报错 + 非零退出码', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
@@ -103,7 +116,10 @@ function cliEnv(configPath) {
 });
 (0, node_test_1.test)('describe 脚本图片不存在 → stderr 报错 + 非零退出码', async () => {
     const dir = (0, fixtures_1.makeTempDir)();
-    const configPath = (0, fixtures_1.writeConfigFile)(dir, { apiKey: 'sk' }).path;
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        apiKey: 'sk',
+        openai: { baseUrl: 'https://example.com', model: 'vision-model' },
+    }).path;
     const err = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
         path.join(dir, 'nope.png'),
@@ -120,7 +136,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const err = await execFileP(process.execPath, [DESCRIBE_ENTRY, imagePath], {
         env: cliEnv(configPath),
@@ -204,7 +220,7 @@ function cliEnv(configPath) {
     });
     t.after(() => server.close());
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -224,7 +240,7 @@ function cliEnv(configPath) {
     const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const missing = path.join(dir, 'missing.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const err = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -243,7 +259,7 @@ function cliEnv(configPath) {
     t.after(() => server.close());
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).path;
     const url = 'https://example.com/cat.png';
     const { stdout, stderr } = await execFileP(process.execPath, [

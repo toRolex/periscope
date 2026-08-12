@@ -51,14 +51,35 @@ node dist/cli/describe.js ./demo.png
 
 ## 配置
 
-配置文件路径：**`~/.config/periscope/config.json`**。首次运行任意命令时会**懒创建**默认配置（见下）；用环境变量 `PERISCOPE_CONFIG` 可覆盖配置路径。
+配置文件路径：**`~/.config/periscope/config.json`**。首次运行任意命令时会**懒创建空白模板配置**（见下），需用 `init` 向导或手改填入你自己的视觉端点；用环境变量 `PERISCOPE_CONFIG` 可覆盖配置路径。
 
-默认配置：
+首次懒创建写入的空白模板（三协议 `baseUrl` / `model` 均为空串，**不绑定任何服务商**）：
 
 ```json
 {
   "protocol": "openai",
   "apiKey": "",
+  "openai": {
+    "baseUrl": "",
+    "model": ""
+  },
+  "anthropic": {
+    "baseUrl": "",
+    "model": ""
+  },
+  "responses": {
+    "baseUrl": "",
+    "model": ""
+  }
+}
+```
+
+填入端点后示例（以 DashScope 兼容模式为例）：
+
+```json
+{
+  "protocol": "openai",
+  "apiKey": "sk-xxx",
   "openai": {
     "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     "model": "qwen-vl-max"
@@ -78,17 +99,17 @@ node dist/cli/describe.js ./demo.png
 
 `protocol` 字段决定当前使用的协议适配器，每个协议都有独立的 `baseUrl` 与 `model` 字段：
 
-| protocol    | 请求端点                        | 鉴权方式                     | 默认 model          |
+| protocol    | 请求端点                        | 鉴权方式                     | 示例 model          |
 | ----------- | ------------------------------- | ---------------------------- | ------------------- |
 | `openai`    | `{baseUrl}/chat/completions`    | `Authorization: Bearer`      | `qwen-vl-max`       |
 | `anthropic` | `{baseUrl}/v1/messages`         | `x-api-key` + `anthropic-version: 2023-06-01` | `claude-3-5-sonnet-latest` |
 | `responses` | `{baseUrl}/responses`           | `Authorization: Bearer`      | `gpt-4o-mini`       |
 
-- **openai（默认）**：兼容 OpenAI chat/completions 格式的端点都可用，默认指向阿里云百炼 DashScope 的兼容模式（`qwen-vl-max`）。
+- **openai（默认协议，仅指请求形状）**：兼容 OpenAI chat/completions 格式的端点都可用；`baseUrl` / `model` 由用户自行配置，不默认指向任何服务商。
 - **anthropic**：走 Anthropic Messages API，图片以 base64 的 `image` content block 发送。
 - **responses**：走 OpenAI Responses API，图片以 `input_image` 块发送。
 
-切换协议示例：把 `config.json` 的 `protocol` 改成 `"anthropic"`，并填上对应的 `apiKey` 与（如有需要）`baseUrl` / `model`。未知协议会报错并列出可用值（`openai, anthropic, responses`）。
+切换协议示例：把 `config.json` 的 `protocol` 改成 `"anthropic"`，并填上对应的 `apiKey` 与（如有需要）`baseUrl` / `model`。未知协议会报错并列出可用值（`openai, anthropic, responses`）。未配置端点时 describe 会报错并提示运行 `init`。
 
 ### 环境变量
 
@@ -123,7 +144,7 @@ node dist/cli/init.js
 - **确认覆盖**：目标文件已存在时先展示摘要 + 覆盖警告，输入 `y` 才覆盖写入；输入其他字符放弃写入，现有配置保持不变。**没有默认值**——所有字段都需要用户输入。
 - `baseUrl` / `model` / `apiKey` 均**必填**，空输入报错退出（EOF 或 Ctrl+C 也立即终止，非零退出码）。
 - **非 TTY（管道/重定向）环境拒绝运行**，报错提示需要在交互式终端中运行。
-- 写出的 JSON 包含 `protocol` / `apiKey` / `openai` / `anthropic` / `responses` 顶层字段；用户选中的协议段 `baseUrl` / `model` 取用户输入，其余协议段保留 DEFAULT_CONFIG 的端点。
+- 写出的 JSON 包含 `protocol` / `apiKey` / `openai` / `anthropic` / `responses` 顶层字段；用户选中的协议段 `baseUrl` / `model` 取用户输入，其余协议段保留空白模板（空串）。
 
 ```bash
 # 典型使用：装好插件后首次跑
@@ -231,7 +252,8 @@ node dist/cli/describe.js https://example.com/diagram.png
 1. **配置**：编辑 `~/.config/periscope/config.json`，或设置环境变量。示例（用 `PERISCOPE_API_KEY` 与配置文件并存的推荐方式）：
    ```bash
    export PERISCOPE_API_KEY=<你的真实 key>
-   # openai 协议默认指向 DashScope qwen-vl-max；如用其他端点改 config.json 的 baseUrl/model
+   # 先用 `node dist/cli/init.js` 或手改 config.json 填入端点；openai 协议不绑定任何服务商
+   # 未配置端点时 describe 会报错并提示运行 init
    ```
 2. **CLI 实测**：准备一张本地图片与一个真实 URL，分别跑：
    ```bash
@@ -288,7 +310,7 @@ periscope 同时遵守 [Agent Plugins 1.0.0](https://agent-plugins.org) 标准�
 缓存 key 依赖本地文件的路径 + 修改时间 + 大小（`sha256(绝对路径+mtime+size)`），远程 URL 内容可变且无本地 stat，因此不落缓存、请求体直接透传 URL 给视觉端点。
 
 **Q：配置文件在哪？没配置会怎样？**
-默认 `~/.config/periscope/config.json`。首次运行自动懒创建默认配置（`protocol: openai` + DashScope `qwen-vl-max`，`apiKey` 为空）。没配 `apiKey` 时请求不带鉴权头，真实端点通常会返回 401；本地 mock 端点不受影响。
+默认 `~/.config/periscope/config.json`。首次运行自动懒创建空白模板（`protocol: openai`，三协议 `baseUrl` / `model` 为空串，`apiKey` 为空），不绑定任何服务商。没运行 `init` / 没填端点时，describe 会报「协议 X 未配置 baseUrl/model，请运行 init」并提示先配置。没配 `apiKey` 时请求不带鉴权头，真实端点通常会返回 401；本地 mock 端点不受影响。
 
 **Q：hook 失败会阻塞消息发送吗？**
 不会。`decision` 恒为 `approve`；单图失败注入 `描述不可用`，解析/读取 stdin 失败也放行。附加的 `additionalContext` 只是上下文增强，不是发送门禁。

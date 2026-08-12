@@ -70,7 +70,12 @@ function endpointFor(config) {
     if (!endpoint || typeof endpoint !== 'object') {
         throw new Error(`配置缺少协议 ${config.protocol} 的 baseUrl/model`);
     }
-    return { baseUrl: String(endpoint.baseUrl), model: String(endpoint.model) };
+    const baseUrl = String(endpoint.baseUrl ?? '');
+    const model = String(endpoint.model ?? '');
+    if (baseUrl.trim() === '' || model.trim() === '') {
+        throw new Error(`协议 ${config.protocol} 未配置 baseUrl/model，请运行 init 向导配置`);
+    }
+    return { baseUrl, model };
 }
 function truncate(text, max = 200) {
     const single = text.replace(/\s+/g, ' ').trim();
@@ -87,6 +92,8 @@ async function describe(input, opts = {}) {
     const adapter = (0, protocols_1.getProtocol)(config.protocol);
     const transport = opts.transport ?? transport_1.defaultTransport;
     const cacheDir = opts.cacheDir === undefined ? (0, cache_1.defaultCacheDir)() : opts.cacheDir;
+    // 先校验端点：空白模板（未配置 baseUrl/model）应尽早给出可操作报错，而不是等到读图/查缓存之后。
+    const { baseUrl, model } = endpointFor(config);
     let cache = null;
     // 远程 URL 不落本地缓存：缓存 key 依赖本地文件 stat，且远程内容可变。
     if (cacheDir !== null && !REMOTE_URL_RE.test(input.imagePath)) {
@@ -97,7 +104,6 @@ async function describe(input, opts = {}) {
             return cached;
     }
     const imageUrl = sourceToImageUrl(input.imagePath);
-    const { baseUrl, model } = endpointFor(config);
     const request = adapter.buildRequest({
         baseUrl,
         model,

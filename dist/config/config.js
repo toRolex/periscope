@@ -40,20 +40,25 @@ exports.loadConfig = loadConfig;
 const fs = __importStar(require("node:fs"));
 const os = __importStar(require("node:os"));
 const path = __importStar(require("node:path"));
+/**
+ * 空白模板配置：三协议 baseUrl / model 均为空串，不绑定任何服务商。
+ * protocol 默认 openai 仅指请求形状（openai 兼容协议），不指服务商。
+ * 首次运行懒创建时写入本模板；用户需运行 init 向导填入自己的端点。
+ */
 exports.DEFAULT_CONFIG = {
     protocol: 'openai',
     apiKey: '',
     openai: {
-        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        model: 'qwen-vl-max',
+        baseUrl: '',
+        model: '',
     },
     anthropic: {
-        baseUrl: 'https://api.anthropic.com',
-        model: 'claude-3-5-sonnet-latest',
+        baseUrl: '',
+        model: '',
     },
     responses: {
-        baseUrl: 'https://api.openai.com/v1',
-        model: 'gpt-4o-mini',
+        baseUrl: '',
+        model: '',
     },
 };
 /** 从可注入 env 派生配置路径：PERISCOPE_CONFIG 优先，否则 HOME/.config/periscope/config.json；HOME 缺省用 os.homedir() 兜底。 */

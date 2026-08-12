@@ -94,7 +94,7 @@ test('init 默认高亮 openai：直接回车确认 → 写入 openai 配置', a
   const openai = written.openai as { baseUrl: string; model: string };
   assert.equal(openai.baseUrl, 'https://x.example/v1');
   assert.equal(openai.model, 'model-x');
-  // 未选中的协议段保留 DEFAULT_CONFIG 完整 baseUrl + model
+  // 未选中的协议段保留 DEFAULT_CONFIG 空白模板（baseUrl/model 为空串）
   assert.deepEqual(written.anthropic, DEFAULT_CONFIG.anthropic);
   assert.deepEqual(written.responses, DEFAULT_CONFIG.responses);
 });

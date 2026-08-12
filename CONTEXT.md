@@ -2,7 +2,7 @@
 
 periscope = Claude Code 插件。把图片转成文字，喂给纯文本 coding agent。
 
-下游 = 视觉模型端点（openai / anthropic / responses 三种 API 协议）。
+下游 = 用户自带的视觉模型端点（openai / anthropic / responses 三种 API 协议；baseUrl / model 由用户自行配置，不绑定任何服务商）。
 接入层 = 宿主 agent 框架的接入机制：Claude Code hook + skill + 独立脚本。
 _Avoid_: CLI、命令分发器
 
@@ -16,7 +16,7 @@ Claude Code 与 Agent Plugins 的关系：Claude Code **不在**兼容客户端�
 
 扩展目录 = 反向域名命名的顶层目录（如 `com.example.client/`），存放客户端专属数据。Agent Plugins 对扩展目录的内容**不**赋予可移植语义——其他 harness 按定义忽略。
 
-wizard = 交互式配置脚本：方向键选择协议（openai/anthropic/responses）→ 逐项填写 baseUrl / model / apiKey → 最后 y/n 确认覆盖写入。无默认值。
+wizard = 交互式配置脚本：方向键选择协议（openai/anthropic/responses）→ 逐项填写 baseUrl / model（apiKey 可留空，本地端点无需鉴权）→ 最后 y/n 确认覆盖写入。无默认值。
 _Avoid_: 向导、setup 脚本
 
 init = wizard，在独立终端运行，写 `~/.config/periscope/config.json`（已有配置时确认后覆盖）。
@@ -28,4 +28,6 @@ _Avoid_: setup、configure
 doctor = 本地自检脚本，不发起任何外部请求，逐项打 ✅/⚠️/❌。
 _Avoid_: `periscope doctor`（CLI 命令形态已删除）
 
-lazy create = config 模块的兜底行为：首次启动无 config 文件 → 写默认（openai / DashScope qwen-vl-max）。
+lazy create = config 模块的兜底行为：首次启动无 config 文件 → 写空模板（三协议 baseUrl / model 为空串）；describe 读到空端点时给出可操作报错并引导运行 init。
+
+任务模板 = 内置命名 prompt 文案（如 ocr / table / chart），通过 describe 的 intent 传入模板名时替换默认描述文案。periscope 不声明、不探测模型能力（运行时协商：prompt + 输出容错解析），模型不行由用户自行更换。

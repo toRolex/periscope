@@ -38,7 +38,6 @@ const assert = __importStar(require("node:assert"));
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const describe_1 = require("./describe");
-const config_1 = require("../config/config");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
 /** 每用例独立的临时缓存目录 + fixture 图片 + 指向 mock 端点的配置。 */
@@ -48,7 +47,7 @@ function setup(server) {
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         apiKey: 'sk-cache',
-        openai: { ...config_1.DEFAULT_CONFIG.openai, baseUrl: server.baseUrl },
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
     }).config;
     return { dir, cacheDir, imagePath, config };
 }
