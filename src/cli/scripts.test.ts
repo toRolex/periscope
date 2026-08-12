@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createMockServer } from '../testing/mock-server';
-import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage, PLUGIN_SCHEMA_1_0_0 } from '../testing/fixtures';
+import { makeTempDir, makeTestEnv, readyEndpoint, writeConfigFile, writeFixtureImage, PLUGIN_SCHEMA_1_0_0 } from '../testing/fixtures';
 import { TASK_TEMPLATES } from '../core/templates';
 
 const execFileP = promisify(execFile);
@@ -35,7 +35,7 @@ test('describe 脚本输出纯文本描述到 stdout 并以 0 退出', async (t)
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
@@ -62,7 +62,7 @@ test('describe 脚本 --intent ocr 请求体使用 OCR 模板 prompt', async (t)
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
@@ -129,7 +129,7 @@ test('describe 脚本图片不存在 → stderr 报错 + 非零退出码', async
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir, {
     apiKey: 'sk',
-    openai: { baseUrl: 'https://example.com', model: 'vision-model' },
+    openai: readyEndpoint('https://example.com'),
   }).path;
 
   const err: any = await execFileP(process.execPath, [
@@ -151,7 +151,7 @@ test('describe 脚本端点返回 500 → stderr 报错 + 非零退出码', asyn
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const err: any = await execFileP(process.execPath, [DESCRIBE_ENTRY, imagePath], {
@@ -257,7 +257,7 @@ test('describe 脚本接受多张图片并按传入顺序聚合输出', async (t
   t.after(() => server.close());
 
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
@@ -281,7 +281,7 @@ test('describe 脚本多图一败一胜：stdout 保留成功描述，stderr 标
   const img1 = writeFixtureImage(dir, 'a.png');
   const missing = path.join(dir, 'missing.png');
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const err: any = await execFileP(process.execPath, [
@@ -304,7 +304,7 @@ test('describe 脚本接受 URL 远程图片并输出描述', async (t) => {
 
   const dir = makeTempDir();
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
   const url = 'https://example.com/cat.png';
 

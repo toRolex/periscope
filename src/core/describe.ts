@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { defaultCacheDir, imageCacheKey, readCacheEntry, writeCacheEntry } from '../cache';
-import { loadConfig, PeriscopeConfig } from '../config/config';
+import { endpointMissingError, loadConfig, PeriscopeConfig } from '../config/config';
 import { getProtocol } from '../protocols';
 import { defaultTransport, HttpTransport } from '../transport';
 import { resolveIntent } from './templates';
@@ -49,18 +49,10 @@ function sourceToImageUrl(source: string): string {
 }
 
 function endpointFor(config: PeriscopeConfig): { baseUrl: string; model: string } {
+  const error = endpointMissingError(config.protocol, config[config.protocol]);
+  if (error !== null) throw new Error(error);
   const endpoint = config[config.protocol];
-  if (!endpoint || typeof endpoint !== 'object') {
-    throw new Error(`配置缺少协议 ${config.protocol} 的 baseUrl/model`);
-  }
-  const baseUrl = String(endpoint.baseUrl ?? '');
-  const model = String(endpoint.model ?? '');
-  if (baseUrl.trim() === '' || model.trim() === '') {
-    throw new Error(
-      `协议 ${config.protocol} 未配置 baseUrl/model，请运行 init 向导配置`,
-    );
-  }
-  return { baseUrl, model };
+  return { baseUrl: String(endpoint.baseUrl), model: String(endpoint.model) };
 }
 
 function truncate(text: string, max = 200): string {

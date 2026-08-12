@@ -60,7 +60,7 @@ function smokeEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -83,7 +83,7 @@ function smokeEnv(configPath) {
     });
     t.after(() => server.close());
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const url = 'https://example.com/cat.png';
     const { stdout, stderr } = await execFileP(process.execPath, [
@@ -104,7 +104,7 @@ function smokeEnv(configPath) {
     const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const img2 = (0, fixtures_1.writeFixtureImage)(dir, 'b.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const stdin = JSON.stringify({
         session_id: 'smoke-1',

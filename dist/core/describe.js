@@ -67,16 +67,11 @@ function sourceToImageUrl(source) {
     return `data:image/${mime};base64,${base64}`;
 }
 function endpointFor(config) {
+    const error = (0, config_1.endpointMissingError)(config.protocol, config[config.protocol]);
+    if (error !== null)
+        throw new Error(error);
     const endpoint = config[config.protocol];
-    if (!endpoint || typeof endpoint !== 'object') {
-        throw new Error(`配置缺少协议 ${config.protocol} 的 baseUrl/model`);
-    }
-    const baseUrl = String(endpoint.baseUrl ?? '');
-    const model = String(endpoint.model ?? '');
-    if (baseUrl.trim() === '' || model.trim() === '') {
-        throw new Error(`协议 ${config.protocol} 未配置 baseUrl/model，请运行 init 向导配置`);
-    }
-    return { baseUrl, model };
+    return { baseUrl: String(endpoint.baseUrl), model: String(endpoint.model) };
 }
 function truncate(text, max = 200) {
     const single = text.replace(/\s+/g, ' ').trim();

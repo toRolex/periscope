@@ -43,6 +43,21 @@ export const DEFAULT_CONFIG: PeriscopeConfig = {
   },
 };
 
+/**
+ * 激活协议端点非空校验（单一事实源，describe 与 doctor 共享）：
+ * 端点段缺失、或 baseUrl / model 为空串（trim 后）→ 返回可操作报错文案；合法 → null。
+ * doctor 直接读配置文件（无合并），describe 走 loadConfig（含深合并），故入参为宽松结构。
+ */
+export function endpointMissingError(
+  protocol: string,
+  endpoint: { baseUrl?: unknown; model?: unknown } | undefined,
+): string | null {
+  const baseUrl = typeof endpoint?.baseUrl === 'string' ? endpoint.baseUrl.trim() : '';
+  const model = typeof endpoint?.model === 'string' ? endpoint.model.trim() : '';
+  if (baseUrl !== '' && model !== '') return null;
+  return `协议 ${protocol} 未配置 baseUrl/model，请运行 init 向导配置`;
+}
+
 export interface ConfigPathEnv {
   HOME?: string | undefined;
   PERISCOPE_CONFIG?: string | undefined;

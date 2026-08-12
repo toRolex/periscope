@@ -37,6 +37,7 @@ exports.PLUGIN_SCHEMA_1_0_0 = exports.PNG_1PX_BASE64 = exports.StringWritable = 
 exports.makeTempDir = makeTempDir;
 exports.writeFixtureImage = writeFixtureImage;
 exports.writeConfigFile = writeConfigFile;
+exports.readyEndpoint = readyEndpoint;
 exports.withEnv = withEnv;
 exports.makeTestEnv = makeTestEnv;
 const fs = __importStar(require("node:fs"));
@@ -70,6 +71,10 @@ function writeConfigFile(dir, overrides = {}) {
     const filePath = path.join(dir, 'config.json');
     fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
     return { path: filePath, config };
+}
+/** 测试用就绪端点（baseUrl 由调用方注入，如 mock server 动态端口；model 固定），describe/scripts/hook/delivery/plugin/cache 测试共用。 */
+function readyEndpoint(baseUrl) {
+    return { baseUrl, model: 'vision-model' };
 }
 /** 临时设置/删除若干环境变量，测试结束自动还原。 */
 function withEnv(env, fn) {

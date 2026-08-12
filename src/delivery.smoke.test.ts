@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createMockServer } from './testing/mock-server';
-import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from './testing/fixtures';
+import { makeTempDir, makeTestEnv, readyEndpoint, writeConfigFile, writeFixtureImage } from './testing/fixtures';
 import { runHook } from './testing/hook';
 
 const execFileP = promisify(execFile);
@@ -29,7 +29,7 @@ test('smoke: README 描述的 CLI 单图用法端到端可运行（mock 端点�
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const { stdout, stderr } = await execFileP(process.execPath, [
@@ -57,7 +57,7 @@ test('smoke: CLI 多图 + URL 远程图逐行输出 ${source}: ${desc}', async (
   t.after(() => server.close());
 
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
   const url = 'https://example.com/cat.png';
 
@@ -82,7 +82,7 @@ test('smoke: README 描述的 hook 贴图注入端到端可运行（mock 端点�
   const img1 = writeFixtureImage(dir, 'a.png');
   const img2 = writeFixtureImage(dir, 'b.png');
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const stdin = JSON.stringify({

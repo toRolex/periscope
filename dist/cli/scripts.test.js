@@ -63,7 +63,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -83,7 +83,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -138,7 +138,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
         apiKey: 'sk',
-        openai: { baseUrl: 'https://example.com', model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)('https://example.com'),
     }).path;
     const err = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -156,7 +156,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const err = await execFileP(process.execPath, [DESCRIBE_ENTRY, imagePath], {
         env: cliEnv(configPath),
@@ -244,7 +244,7 @@ function cliEnv(configPath) {
     });
     t.after(() => server.close());
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const { stdout, stderr } = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -264,7 +264,7 @@ function cliEnv(configPath) {
     const img1 = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const missing = path.join(dir, 'missing.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const err = await execFileP(process.execPath, [
         DESCRIBE_ENTRY,
@@ -283,7 +283,7 @@ function cliEnv(configPath) {
     t.after(() => server.close());
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const url = 'https://example.com/cat.png';
     const { stdout, stderr } = await execFileP(process.execPath, [

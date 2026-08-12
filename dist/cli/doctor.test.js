@@ -50,7 +50,7 @@ const doctor_1 = require("./doctor");
 function tmpDist() {
     return (0, fixtures_1.makeTempDir)('periscope-doctor-dist-');
 }
-function writeFullConfig(dir, overrides = {}) {
+function writeBlankConfig(dir, overrides = {}) {
     const config = { ...config_1.DEFAULT_CONFIG, ...overrides };
     const filePath = path.join(dir, 'config.json');
     fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
@@ -227,7 +227,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor Node 版本低于 engines.node 下限 → 该项 ❌ + 结论非零', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-oldnode-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeBlankConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();
@@ -247,7 +247,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor dist/ 缺少 cli/describe.js → 该项 ❌（提示需要 npm run build）', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-nodist-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeBlankConfig(tmp);
     const distDir = tmpDist();
     // 故意只放 init/doctor，缺 cli/describe.js
     seedDist(distDir, ['cli/init.js', 'cli/doctor.js']);
@@ -346,7 +346,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor 根 plugin.json 不合规（name 大写）→ 该项 ❌ + 来源提示 + 退出码非零', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-schema-bad-');
-    const configPath = writeFullConfig(tmp);
+    const configPath = writeBlankConfig(tmp);
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     writePluginJson(tmp, { ...VALID_PLUGIN_MANIFEST, name: 'Periscope' });
@@ -513,7 +513,7 @@ function writePluginJson(dir, manifest) {
 });
 (0, node_test_1.test)('doctor config 存在但激活协议端点为空 → 该项 ❌ + 引导 init + 不误报全绿', async () => {
     const tmp = (0, fixtures_1.makeTempDir)('periscope-doctor-active-empty-');
-    const configPath = writeFullConfig(tmp); // 三协议段结构完整，但 baseUrl / model 全为空串
+    const configPath = writeBlankConfig(tmp); // 三协议段结构完整，但 baseUrl / model 全为空串
     const distDir = tmpDist();
     seedDist(distDir, ['cli/describe.js', 'cli/init.js', 'cli/doctor.js']);
     const stdout = new fixtures_1.StringWritable();

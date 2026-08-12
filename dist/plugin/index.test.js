@@ -146,7 +146,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const img = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const hooksFile = readJson(HOOKS_FILE);
     const flatHooks = hooksFile.hooks.UserPromptSubmit.flatMap((e) => e.hooks ?? []);
@@ -173,7 +173,7 @@ function cliEnv(configPath) {
     const dir = (0, fixtures_1.makeTempDir)();
     const img = (0, fixtures_1.writeFixtureImage)(dir, 'a.png');
     const configPath = (0, fixtures_1.writeConfigFile)(dir, {
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).path;
     const cliEntry = path.join(REPO_ROOT, 'dist', 'cli', 'describe.js');
     assert.ok(fs.existsSync(cliEntry), '编译产物 dist/cli/describe.js 应存在');

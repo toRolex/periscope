@@ -39,6 +39,11 @@ export function writeConfigFile(
   return { path: filePath, config };
 }
 
+/** 测试用就绪端点（baseUrl 由调用方注入，如 mock server 动态端口；model 固定），describe/scripts/hook/delivery/plugin/cache 测试共用。 */
+export function readyEndpoint(baseUrl: string): { baseUrl: string; model: string } {
+  return { baseUrl, model: 'vision-model' };
+}
+
 /** 临时设置/删除若干环境变量，测试结束自动还原。 */
 export function withEnv(
   env: Record<string, string | undefined>,

@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { buildImageContext, describeImageEntries, handleHookInput } from './index';
 import { HttpTransport } from '../transport';
 import { createMockServer } from '../testing/mock-server';
-import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+import { makeTempDir, makeTestEnv, readyEndpoint, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 import { runHook } from '../testing/hook';
 
 /** 编译后 hook 入口与 CLI 同模式：位于 dist/hook/index.js。 */
@@ -19,7 +19,7 @@ function hookEnv(configPath: string, cacheDir?: string): Record<string, string |
 }
 
 test('describeImageEntries 并行逐图容错：单图失败置 null 不阻塞其余', async () => {
-  const config = writeConfigFile(makeTempDir(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
+  const config = writeConfigFile(makeTempDir(), { openai: readyEndpoint('https://example.com') }).config;
   let active = 0;
   let maxActive = 0;
   const fakeTransport: HttpTransport = {
@@ -100,7 +100,7 @@ test('handleHookInput 无图片时放行且 additionalContext 为空串（2.1.x 
 });
 
 test('handleHookInput 注入 additionalContext 并放行', async () => {
-  const config = writeConfigFile(makeTempDir(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
+  const config = writeConfigFile(makeTempDir(), { openai: readyEndpoint('https://example.com') }).config;
   const fakeTransport: HttpTransport = {
     async post(req) {
       const url = (req.body as any).messages[0].content[1].image_url.url as string;
@@ -137,7 +137,7 @@ test('hook stdin fixture：含 image_paths 的事件注入 additionalContext', a
   const img1 = writeFixtureImage(dir, 'a.png');
   const img2 = writeFixtureImage(dir, 'b.png');
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const stdin = JSON.stringify({
@@ -167,7 +167,7 @@ test('hook 失败 fixture：单图描述失败注入占位符且仍放行', asyn
   const dir = makeTempDir();
   const img1 = writeFixtureImage(dir, 'a.png');
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const stdin = JSON.stringify({
@@ -199,7 +199,7 @@ test('hook 复用缓存：同一图两次 hook 只发一次视觉请求', async 
   const dir = makeTempDir();
   const img = writeFixtureImage(dir, 'a.png');
   const configPath = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
   const cacheDir = makeTempDir('periscope-hook-cache-');
   const env = hookEnv(configPath, cacheDir);

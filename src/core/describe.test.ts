@@ -5,7 +5,7 @@ import { describe, describeMany } from './describe';
 import { TASK_TEMPLATES } from './templates';
 import { HttpTransport } from '../transport';
 import { createMockServer } from '../testing/mock-server';
-import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+import { makeTempDir, readyEndpoint, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 
 // describe 默认开启本地缓存，把 PERISCOPE_CACHE_DIR 指向临时目录，
 // 避免本文件的网络路径测试把缓存条目写进真实 ~/.cache/periscope。
@@ -26,7 +26,7 @@ test('describe 通过 mock 端点发送 openai 协议请求并提取文本', asy
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     apiKey: 'sk-core',
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath }, { config });
@@ -52,7 +52,7 @@ test('describe 空 apiKey（本地无鉴权端点）→ 请求不携带鉴权头
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     apiKey: '',
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath }, { config });
@@ -122,7 +122,7 @@ test('describe 透传 intent 到 text 部分', async (t) => {
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   await describe({ imagePath, intent: '用中文描述颜色' }, { config });
@@ -138,7 +138,7 @@ test('describe --intent ocr 请求体使用 OCR 模板 prompt', async (t) => {
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   await describe({ imagePath, intent: 'ocr' }, { config });
@@ -154,7 +154,7 @@ test('describe --intent table 请求体使用 table 模板 prompt', async (t) =>
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   await describe({ imagePath, intent: 'table' }, { config });
@@ -170,7 +170,7 @@ test('describe --intent chart 请求体使用 chart 模板 prompt', async (t) =>
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   await describe({ imagePath, intent: 'chart' }, { config });
@@ -186,7 +186,7 @@ test('describe 自定义 intent 原样透传：模板名保留字之外的文本
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   await describe({ imagePath, intent: '把图片中的表格整理成要点' }, { config });
@@ -204,7 +204,7 @@ test('describe --intent ocr 在 anthropic 协议请求体使用 OCR 模板 promp
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     protocol: 'anthropic',
-    anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
+    anthropic: readyEndpoint(server.baseUrl),
   }).config;
 
   await describe({ imagePath, intent: 'ocr' }, { config });
@@ -221,7 +221,7 @@ test('describe --intent table 在 responses 协议请求体使用 table 模板 p
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     protocol: 'responses',
-    responses: { baseUrl: server.baseUrl, model: 'vision-model' },
+    responses: readyEndpoint(server.baseUrl),
   }).config;
 
   await describe({ imagePath, intent: 'table' }, { config });
@@ -240,7 +240,7 @@ test('describe 端点返回非 2xx 时抛错', async (t) => {
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   await assert.rejects(describe({ imagePath }, { config }), /HTTP 401/);
@@ -256,7 +256,7 @@ test('describe 2xx 但响应非 JSON 时透传原始文本', async (t) => {
   const dir = makeTempDir();
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath }, { config });
@@ -267,7 +267,7 @@ test('describe 图片文件不存在时抛错（端点已配置）', async () =>
   const dir = makeTempDir();
   const config = writeConfigFile(dir, {
     apiKey: 'sk',
-    openai: { baseUrl: 'https://example.com', model: 'vision-model' },
+    openai: readyEndpoint('https://example.com'),
   }).config;
   await assert.rejects(
     describe({ imagePath: path.join(dir, 'missing.png') }, { config }),
@@ -282,7 +282,7 @@ test('describe 接受 http(s) URL 图片：请求 body 的 image_url.url 透传�
   const dir = makeTempDir();
   const config = writeConfigFile(dir, {
     apiKey: 'sk-core',
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath: 'https://example.com/cat.png' }, { config });
@@ -294,7 +294,7 @@ test('describe 接受 http(s) URL 图片：请求 body 的 image_url.url 透传�
 });
 
 test('describeMany 并行请求多图并按输入顺序聚合', async () => {
-  const config = writeConfigFile(makeTempDir(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
+  const config = writeConfigFile(makeTempDir(), { openai: readyEndpoint('https://example.com') }).config;
   const fakeTransport: HttpTransport = {
     async post(req) {
       const url = (req.body as any).messages[0].content[1].image_url.url as string;
@@ -325,7 +325,7 @@ test('describeMany 并行请求多图并按输入顺序聚合', async () => {
 });
 
 test('describeMany 逐图容错：单图失败不丢其余成功结果', async () => {
-  const config = writeConfigFile(makeTempDir(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
+  const config = writeConfigFile(makeTempDir(), { openai: readyEndpoint('https://example.com') }).config;
   const fakeTransport: HttpTransport = {
     async post(req) {
       const url = (req.body as any).messages[0].content[1].image_url.url as string;
@@ -358,7 +358,7 @@ test('describeMany 逐图容错：单图失败不丢其余成功结果', async (
 });
 
 test('describeMany 多图同时发起请求（并行度）', async () => {
-  const config = writeConfigFile(makeTempDir(), { openai: { baseUrl: 'https://example.com', model: 'vision-model' } }).config;
+  const config = writeConfigFile(makeTempDir(), { openai: readyEndpoint('https://example.com') }).config;
   let active = 0;
   let maxActive = 0;
   const fakeTransport: HttpTransport = {
@@ -395,7 +395,7 @@ test('describe 未注入配置时走 loadConfig：环境变量优先于文件 ap
   const imagePath = writeFixtureImage(dir);
   const configPath = writeConfigFile(dir, {
     apiKey: 'sk-file',
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).path;
 
   const pathBefore = process.env.PERISCOPE_CONFIG;
@@ -427,7 +427,7 @@ test('describe 通过 mock 端点发送 anthropic v1/messages 请求并提取文
   const config = writeConfigFile(dir, {
     protocol: 'anthropic',
     apiKey: 'sk-ant-core',
-    anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
+    anthropic: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath }, { config });
@@ -472,7 +472,7 @@ test('describe 通过 mock 端点发送 responses v1/responses 请求并提取�
   const config = writeConfigFile(dir, {
     protocol: 'responses',
     apiKey: 'sk-resp-core',
-    responses: { baseUrl: server.baseUrl, model: 'vision-model' },
+    responses: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath }, { config });
@@ -505,7 +505,7 @@ test('describe 2xx 但 anthropic 响应非 JSON 时透传原始文本', async (t
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     protocol: 'anthropic',
-    anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
+    anthropic: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath }, { config });
@@ -523,7 +523,7 @@ test('describe 2xx 但 responses 响应非 JSON 时透传原始文本', async (t
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     protocol: 'responses',
-    responses: { baseUrl: server.baseUrl, model: 'vision-model' },
+    responses: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe({ imagePath }, { config });
@@ -541,7 +541,7 @@ test('describe anthropic 端点返回非 2xx 时抛错', async (t) => {
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     protocol: 'anthropic',
-    anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
+    anthropic: readyEndpoint(server.baseUrl),
   }).config;
 
   await assert.rejects(describe({ imagePath }, { config }), /HTTP 429/);
@@ -559,7 +559,7 @@ test('describe anthropic 协议 + http URL 远程图：请求 body 的 image sou
   const config = writeConfigFile(dir, {
     protocol: 'anthropic',
     apiKey: 'sk-ant-core',
-    anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
+    anthropic: readyEndpoint(server.baseUrl),
   }).config;
 
   const text = await describe(

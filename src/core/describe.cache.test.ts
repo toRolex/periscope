@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe } from './describe';
 import { createMockServer } from '../testing/mock-server';
-import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
+import { makeTempDir, readyEndpoint, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 
 /** 每用例独立的临时缓存目录 + fixture 图片 + 指向 mock 端点的配置。 */
 function setup(server: { baseUrl: string }) {
@@ -13,7 +13,7 @@ function setup(server: { baseUrl: string }) {
   const imagePath = writeFixtureImage(dir);
   const config = writeConfigFile(dir, {
     apiKey: 'sk-cache',
-    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    openai: readyEndpoint(server.baseUrl),
   }).config;
   return { dir, cacheDir, imagePath, config };
 }

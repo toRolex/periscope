@@ -93,22 +93,30 @@ function checkConfigFile(configPath) {
     }
     return { status: 'ok', detail: `配置文件存在: ${configPath}` };
 }
-function checkProtocolSections(configPath) {
+/** 读取配置文件 JSON：不存在 / 解析失败 → fail 结果；成功 → cfg。purpose 用于区分各检查项的自述。 */
+function loadConfigJson(configPath, purpose) {
     if (!fs.existsSync(configPath)) {
-        return { status: 'fail', detail: '配置文件不存在，无法校验协议段' };
+        return { fail: { status: 'fail', detail: `配置文件不存在，无法${purpose}` } };
     }
-    let cfg;
     try {
-        cfg = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
+        const cfg = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
+        return { cfg };
     }
     catch (err) {
         return {
-            status: 'fail',
-            detail: `配置文件 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`,
+            fail: {
+                status: 'fail',
+                detail: `配置文件 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`,
+            },
         };
     }
+}
+function checkProtocolSections(configPath) {
+    const loaded = loadConfigJson(configPath, '校验协议段');
+    if (loaded.fail)
+        return loaded.fail;
     const missing = REQUIRED_PROTOCOLS.filter((p) => {
-        const seg = cfg[p];
+        const seg = loaded.cfg[p];
         return !seg || typeof seg.baseUrl !== 'string' || typeof seg.model !== 'string';
     });
     if (missing.length > 0) {
@@ -118,36 +126,16 @@ function checkProtocolSections(configPath) {
 }
 /** 激活协议（config.protocol）端点非空检查（issue #21）：协议段结构完整但激活协议 baseUrl / model 为空时 ❌ 并引导 init。 */
 function checkActiveProtocol(configPath) {
-    if (!fs.existsSync(configPath)) {
-        return { status: 'fail', detail: '配置文件不存在，无法校验激活协议' };
-    }
-    let cfg;
-    try {
-        cfg = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
-    }
-    catch (err) {
-        return {
-            status: 'fail',
-            detail: `配置文件 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`,
-        };
-    }
-    const protocol = cfg.protocol;
+    const loaded = loadConfigJson(configPath, '校验激活协议');
+    if (loaded.fail)
+        return loaded.fail;
+    const protocol = loaded.cfg.protocol;
     if (typeof protocol !== 'string' || protocol === '') {
         return { status: 'fail', detail: '未设置激活协议 protocol，请运行 init 向导配置' };
     }
-    const seg = cfg[protocol];
-    const baseUrl = typeof seg?.baseUrl === 'string' ? seg.baseUrl.trim() : '';
-    const model = typeof seg?.model === 'string' ? seg.model.trim() : '';
-    const empty = [];
-    if (baseUrl === '')
-        empty.push('baseUrl');
-    if (model === '')
-        empty.push('model');
-    if (empty.length > 0) {
-        return {
-            status: 'fail',
-            detail: `${protocol} 端点未配置（${empty.join(' / ')} 为空），请运行 init 向导配置`,
-        };
+    const error = (0, config_1.endpointMissingError)(protocol, loaded.cfg[protocol]);
+    if (error !== null) {
+        return { status: 'fail', detail: error };
     }
     return { status: 'ok', detail: `${protocol} 端点已配置（baseUrl / model 非空）` };
 }

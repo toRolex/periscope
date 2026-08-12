@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_CONFIG = void 0;
+exports.endpointMissingError = endpointMissingError;
 exports.configPathForEnv = configPathForEnv;
 exports.defaultConfigPath = defaultConfigPath;
 exports.loadConfig = loadConfig;
@@ -61,6 +62,18 @@ exports.DEFAULT_CONFIG = {
         model: '',
     },
 };
+/**
+ * 激活协议端点非空校验（单一事实源，describe 与 doctor 共享）：
+ * 端点段缺失、或 baseUrl / model 为空串（trim 后）→ 返回可操作报错文案；合法 → null。
+ * doctor 直接读配置文件（无合并），describe 走 loadConfig（含深合并），故入参为宽松结构。
+ */
+function endpointMissingError(protocol, endpoint) {
+    const baseUrl = typeof endpoint?.baseUrl === 'string' ? endpoint.baseUrl.trim() : '';
+    const model = typeof endpoint?.model === 'string' ? endpoint.model.trim() : '';
+    if (baseUrl !== '' && model !== '')
+        return null;
+    return `协议 ${protocol} 未配置 baseUrl/model，请运行 init 向导配置`;
+}
 /** 从可注入 env 派生配置路径：PERISCOPE_CONFIG 优先，否则 HOME/.config/periscope/config.json；HOME 缺省用 os.homedir() 兜底。 */
 function configPathForEnv(env = {}) {
     return (env.PERISCOPE_CONFIG ??

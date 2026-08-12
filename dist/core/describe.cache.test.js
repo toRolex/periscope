@@ -47,7 +47,7 @@ function setup(server) {
     const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
     const config = (0, fixtures_1.writeConfigFile)(dir, {
         apiKey: 'sk-cache',
-        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+        openai: (0, fixtures_1.readyEndpoint)(server.baseUrl),
     }).config;
     return { dir, cacheDir, imagePath, config };
 }

@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Writable } from 'node:stream';
 import { defaultCacheDir } from '../cache';
-import { configPathForEnv } from '../config/config';
+import { configPathForEnv, endpointMissingError } from '../config/config';
 import {
   FetchLike,
   isSchemaCacheFresh,
@@ -98,21 +98,35 @@ function checkConfigFile(configPath: string): CheckResult {
   return { status: 'ok', detail: `配置文件存在: ${configPath}` };
 }
 
-function checkProtocolSections(configPath: string): CheckResult {
+/** 读取配置文件 JSON：不存在 / 解析失败 → fail 结果；成功 → cfg。purpose 用于区分各检查项的自述。 */
+function loadConfigJson(
+  configPath: string,
+  purpose: string,
+): { cfg?: Record<string, unknown>; fail?: CheckResult } {
   if (!fs.existsSync(configPath)) {
-    return { status: 'fail', detail: '配置文件不存在，无法校验协议段' };
+    return { fail: { status: 'fail', detail: `配置文件不存在，无法${purpose}` } };
   }
-  let cfg: Record<string, unknown>;
   try {
-    cfg = JSON.parse(fs.readFileSync(configPath).toString('utf8'));
+    const cfg = JSON.parse(fs.readFileSync(configPath).toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    return { cfg };
   } catch (err) {
     return {
-      status: 'fail',
-      detail: `配置文件 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`,
+      fail: {
+        status: 'fail',
+        detail: `配置文件 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`,
+      },
     };
   }
+}
+
+function checkProtocolSections(configPath: string): CheckResult {
+  const loaded = loadConfigJson(configPath, '校验协议段');
+  if (loaded.fail) return loaded.fail;
   const missing = REQUIRED_PROTOCOLS.filter((p) => {
-    const seg = cfg[p] as { baseUrl?: unknown; model?: unknown } | undefined;
+    const seg = loaded.cfg![p] as { baseUrl?: unknown; model?: unknown } | undefined;
     return !seg || typeof seg.baseUrl !== 'string' || typeof seg.model !== 'string';
   });
   if (missing.length > 0) {
@@ -123,33 +137,15 @@ function checkProtocolSections(configPath: string): CheckResult {
 
 /** 激活协议（config.protocol）端点非空检查（issue #21）：协议段结构完整但激活协议 baseUrl / model 为空时 ❌ 并引导 init。 */
 function checkActiveProtocol(configPath: string): CheckResult {
-  if (!fs.existsSync(configPath)) {
-    return { status: 'fail', detail: '配置文件不存在，无法校验激活协议' };
-  }
-  let cfg: Record<string, unknown>;
-  try {
-    cfg = JSON.parse(fs.readFileSync(configPath).toString('utf8')) as Record<string, unknown>;
-  } catch (err) {
-    return {
-      status: 'fail',
-      detail: `配置文件 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`,
-    };
-  }
-  const protocol = cfg.protocol;
+  const loaded = loadConfigJson(configPath, '校验激活协议');
+  if (loaded.fail) return loaded.fail;
+  const protocol = loaded.cfg!.protocol;
   if (typeof protocol !== 'string' || protocol === '') {
     return { status: 'fail', detail: '未设置激活协议 protocol，请运行 init 向导配置' };
   }
-  const seg = cfg[protocol] as { baseUrl?: unknown; model?: unknown } | undefined;
-  const baseUrl = typeof seg?.baseUrl === 'string' ? seg.baseUrl.trim() : '';
-  const model = typeof seg?.model === 'string' ? seg.model.trim() : '';
-  const empty: string[] = [];
-  if (baseUrl === '') empty.push('baseUrl');
-  if (model === '') empty.push('model');
-  if (empty.length > 0) {
-    return {
-      status: 'fail',
-      detail: `${protocol} 端点未配置（${empty.join(' / ')} 为空），请运行 init 向导配置`,
-    };
+  const error = endpointMissingError(protocol, loaded.cfg![protocol] as Record<string, unknown>);
+  if (error !== null) {
+    return { status: 'fail', detail: error };
   }
   return { status: 'ok', detail: `${protocol} 端点已配置（baseUrl / model 非空）` };
 }
