@@ -39,6 +39,7 @@ exports.runDoctor = runDoctor;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const cache_1 = require("../cache");
+const config_1 = require("../config/config");
 const plugin_schema_1 = require("./plugin-schema");
 const shared_1 = require("./shared");
 /** 解析 doctor 命令行参数。支持 `--offline`（位置无关）。 */
@@ -221,8 +222,10 @@ const STATUS_ICON = {
 async function runDoctor(argv, stdout, stderr, options = {}) {
     void stderr; // 当前实现不向 stderr 写任何东西（保留签名以与 describe/init 的 CLI 入口对称；解析/获取失败均走 ⚠️ 降级到 stdout）
     const { offline } = parseDoctorArgs(argv);
-    const configPath = options.PERISCOPE_CONFIG ??
-        path.join(options.HOME ?? process.env.HOME ?? '', '.config', 'periscope', 'config.json');
+    const configPath = (0, config_1.configPathForEnv)({
+        HOME: options.HOME,
+        PERISCOPE_CONFIG: options.PERISCOPE_CONFIG,
+    });
     const repoRoot = options.repoRoot ?? deriveRepoRoot();
     const distDir = options.distDir ?? deriveDistDir();
     const nodeVersion = options.nodeVersion ?? process.version;

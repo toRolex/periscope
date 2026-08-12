@@ -41,10 +41,6 @@ const readline = __importStar(require("node:readline"));
 const config_1 = require("../config/config");
 const shared_1 = require("./shared");
 const PROTOCOLS = ['openai', 'anthropic', 'responses'];
-function defaultConfigPathForEnv(env) {
-    return (env.PERISCOPE_CONFIG ??
-        path.join(env.HOME ?? '', '.config', 'periscope', 'config.json'));
-}
 /**
  * 把 stdin 的 keypress / end / close 事件收敛成可 await 的按键队列。
  * 先到先得：按键到达时若无等待者则入队，等待者取队首。
@@ -165,7 +161,7 @@ async function readField(nextKey, stdout, prompt) {
  * 写入路径 PERISCOPE_CONFIG 优先，否则 HOME 派生。stdin 非 TTY 时降级报错退出。
  */
 async function runInit(_argv, stdin, stdout, stderr, env) {
-    const configPath = defaultConfigPathForEnv(env);
+    const configPath = (0, config_1.configPathForEnv)(env);
     if (!stdin.isTTY) {
         stderr.write('错误: init 需要在交互式终端（TTY）中运行，请勿在管道/重定向环境调用\n');
         return 1;

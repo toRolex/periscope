@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_CONFIG = void 0;
+exports.configPathForEnv = configPathForEnv;
 exports.defaultConfigPath = defaultConfigPath;
 exports.loadConfig = loadConfig;
 const fs = __importStar(require("node:fs"));
@@ -55,10 +56,14 @@ exports.DEFAULT_CONFIG = {
         model: 'gpt-4o-mini',
     },
 };
+/** 从可注入 env 派生配置路径：PERISCOPE_CONFIG 优先，否则 HOME/.config/periscope/config.json；HOME 缺省用 os.homedir() 兜底。 */
+function configPathForEnv(env = {}) {
+    return (env.PERISCOPE_CONFIG ??
+        path.join(env.HOME ?? os.homedir(), '.config', 'periscope', 'config.json'));
+}
 /** 配置路径：PERISCOPE_CONFIG 优先，默认 ~/.config/periscope/config.json。 */
 function defaultConfigPath() {
-    return (process.env.PERISCOPE_CONFIG ??
-        path.join(os.homedir(), '.config', 'periscope', 'config.json'));
+    return configPathForEnv({ PERISCOPE_CONFIG: process.env.PERISCOPE_CONFIG });
 }
 /**
  * 读取配置；文件不存在时懒创建默认配置。

@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Writable } from 'node:stream';
 import { defaultCacheDir } from '../cache';
+import { configPathForEnv } from '../config/config';
 import {
   FetchLike,
   isSchemaCacheFresh,
@@ -249,14 +250,10 @@ export async function runDoctor(
 
   const { offline } = parseDoctorArgs(argv);
 
-  const configPath =
-    options.PERISCOPE_CONFIG ??
-    path.join(
-      options.HOME ?? process.env.HOME ?? '',
-      '.config',
-      'periscope',
-      'config.json',
-    );
+  const configPath = configPathForEnv({
+    HOME: options.HOME,
+    PERISCOPE_CONFIG: options.PERISCOPE_CONFIG,
+  });
 
   const repoRoot = options.repoRoot ?? deriveRepoRoot();
   const distDir = options.distDir ?? deriveDistDir();

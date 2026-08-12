@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { Readable, Writable } from 'node:stream';
-import { DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
+import { configPathForEnv, DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
 import { Protocol } from '../protocols/types';
 import { errorMessage } from './shared';
 
@@ -13,13 +13,6 @@ export interface RunInitOptions {
 }
 
 const PROTOCOLS: Protocol[] = ['openai', 'anthropic', 'responses'];
-
-function defaultConfigPathForEnv(env: RunInitOptions): string {
-  return (
-    env.PERISCOPE_CONFIG ??
-    path.join(env.HOME ?? '', '.config', 'periscope', 'config.json')
-  );
-}
 
 /** keypress 事件的结构（仅保留实现关心的字段）。 */
 interface KeyEvent {
@@ -182,7 +175,7 @@ export async function runInit(
   stderr: Writable,
   env: RunInitOptions,
 ): Promise<number> {
-  const configPath = defaultConfigPathForEnv(env);
+  const configPath = configPathForEnv(env);
 
   if (!(stdin as unknown as { isTTY?: boolean }).isTTY) {
     stderr.write('错误: init 需要在交互式终端（TTY）中运行，请勿在管道/重定向环境调用\n');

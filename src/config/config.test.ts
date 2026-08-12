@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { DEFAULT_CONFIG, defaultConfigPath, loadConfig } from './config';
+import { configPathForEnv, DEFAULT_CONFIG, defaultConfigPath, loadConfig } from './config';
 import { Protocol } from '../protocols/types';
 import { makeTempDir, withEnv } from '../testing/fixtures';
 
@@ -45,6 +45,29 @@ test('默认配置路径为 HOME/.config/periscope/config.json，且可被 PERIS
   const overridePath = path.join(dir, 'custom.json');
   withEnv({ PERISCOPE_CONFIG: overridePath }, () => {
     assert.equal(defaultConfigPath(), overridePath);
+  });
+});
+
+test('configPathForEnv：PERISCOPE_CONFIG 优先，否则 HOME 派生', () => {
+  const dir = makeTempDir();
+  assert.equal(
+    configPathForEnv({ HOME: dir }),
+    path.join(dir, '.config', 'periscope', 'config.json'),
+  );
+  const override = path.join(dir, 'custom.json');
+  assert.equal(
+    configPathForEnv({ HOME: dir, PERISCOPE_CONFIG: override }),
+    override,
+  );
+});
+
+test('configPathForEnv：HOME 缺省时用 os.homedir() 兜底', () => {
+  const dir = makeTempDir();
+  withEnv({ HOME: dir }, () => {
+    assert.equal(
+      configPathForEnv({}),
+      path.join(dir, '.config', 'periscope', 'config.json'),
+    );
   });
 });
 

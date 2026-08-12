@@ -72,6 +72,18 @@ const fixtures_1 = require("../testing/fixtures");
         assert.equal((0, config_1.defaultConfigPath)(), overridePath);
     });
 });
+(0, node_test_1.test)('configPathForEnv：PERISCOPE_CONFIG 优先，否则 HOME 派生', () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    assert.equal((0, config_1.configPathForEnv)({ HOME: dir }), path.join(dir, '.config', 'periscope', 'config.json'));
+    const override = path.join(dir, 'custom.json');
+    assert.equal((0, config_1.configPathForEnv)({ HOME: dir, PERISCOPE_CONFIG: override }), override);
+});
+(0, node_test_1.test)('configPathForEnv：HOME 缺省时用 os.homedir() 兜底', () => {
+    const dir = (0, fixtures_1.makeTempDir)();
+    (0, fixtures_1.withEnv)({ HOME: dir }, () => {
+        assert.equal((0, config_1.configPathForEnv)({}), path.join(dir, '.config', 'periscope', 'config.json'));
+    });
+});
 (0, node_test_1.test)('PERISCOPE_API_KEY 环境变量优先于配置文件中的 apiKey', () => {
     const dir = (0, fixtures_1.makeTempDir)();
     const configPath = path.join(dir, 'config.json');

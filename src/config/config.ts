@@ -38,12 +38,22 @@ export const DEFAULT_CONFIG: PeriscopeConfig = {
   },
 };
 
+export interface ConfigPathEnv {
+  HOME?: string | undefined;
+  PERISCOPE_CONFIG?: string | undefined;
+}
+
+/** 从可注入 env 派生配置路径：PERISCOPE_CONFIG 优先，否则 HOME/.config/periscope/config.json；HOME 缺省用 os.homedir() 兜底。 */
+export function configPathForEnv(env: ConfigPathEnv = {}): string {
+  return (
+    env.PERISCOPE_CONFIG ??
+    path.join(env.HOME ?? os.homedir(), '.config', 'periscope', 'config.json')
+  );
+}
+
 /** 配置路径：PERISCOPE_CONFIG 优先，默认 ~/.config/periscope/config.json。 */
 export function defaultConfigPath(): string {
-  return (
-    process.env.PERISCOPE_CONFIG ??
-    path.join(os.homedir(), '.config', 'periscope', 'config.json')
-  );
+  return configPathForEnv({ PERISCOPE_CONFIG: process.env.PERISCOPE_CONFIG });
 }
 
 export interface LoadConfigOptions {
