@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const responses_1 = require("./responses");
+const templates_1 = require("../core/templates");
 (0, node_test_1.test)('buildRequest 构造 responses v1/responses 请求', () => {
     const req = responses_1.responsesAdapter.buildRequest({
         baseUrl: 'https://api.openai.com/v1',
@@ -108,4 +109,17 @@ const responses_1 = require("./responses");
 (0, node_test_1.test)('extractText 对缺少 output 的响应透传原始文本', () => {
     const raw = '{"error":{"message":"bad request"}}';
     assert.equal(responses_1.responsesAdapter.extractText(raw), raw);
+});
+(0, node_test_1.test)('buildRequest 把 ocr/table/chart 模板 prompt 放进 input_text 位置', () => {
+    for (const prompt of Object.values(templates_1.TASK_TEMPLATES)) {
+        const req = responses_1.responsesAdapter.buildRequest({
+            baseUrl: 'https://api.openai.com/v1',
+            model: 'gpt-4o-mini',
+            imageDataUrl: 'data:image/png;base64,AAAA',
+            intent: prompt,
+        });
+        const body = req.body;
+        assert.equal(body.input[0].content[0].type, 'input_text');
+        assert.equal(body.input[0].content[0].text, prompt);
+    }
 });

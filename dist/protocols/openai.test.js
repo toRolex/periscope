@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const openai_1 = require("./openai");
+const templates_1 = require("../core/templates");
 (0, node_test_1.test)('buildRequest 构造 openai chat/completions 请求', () => {
     const req = openai_1.openaiAdapter.buildRequest({
         baseUrl: 'https://dashscope.example/v1',
@@ -96,4 +97,17 @@ const openai_1 = require("./openai");
 (0, node_test_1.test)('extractText 对缺少 content 的响应透传原始文本', () => {
     const raw = '{"error":{"message":"bad request"}}';
     assert.equal(openai_1.openaiAdapter.extractText(raw), raw);
+});
+(0, node_test_1.test)('buildRequest 把 ocr/table/chart 模板 prompt 放进 text 位置', () => {
+    for (const prompt of Object.values(templates_1.TASK_TEMPLATES)) {
+        const req = openai_1.openaiAdapter.buildRequest({
+            baseUrl: 'https://dashscope.example/v1',
+            model: 'qwen-vl-max',
+            imageDataUrl: 'data:image/png;base64,AAAA',
+            intent: prompt,
+        });
+        const body = req.body;
+        assert.equal(body.messages[0].content[0].type, 'text');
+        assert.equal(body.messages[0].content[0].text, prompt);
+    }
 });

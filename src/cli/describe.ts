@@ -29,7 +29,7 @@ export function parseDescribeArgs(argv: string[]): ParsedArgs {
 }
 
 export function describeUsage(): string {
-  return '用法: describe.js <图片路径或URL> [...] [--intent "描述内容"]';
+  return '用法: describe.js <图片路径或URL> [...] [--intent ocr|table|chart|"描述内容"]';
 }
 
 /**

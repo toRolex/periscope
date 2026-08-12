@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const anthropic_1 = require("./anthropic");
+const templates_1 = require("../core/templates");
 (0, node_test_1.test)('buildRequest 构造 anthropic v1/messages 请求', () => {
     const req = anthropic_1.anthropicAdapter.buildRequest({
         baseUrl: 'https://api.anthropic.com',
@@ -116,4 +117,17 @@ const anthropic_1 = require("./anthropic");
     assert.equal(body.messages[0].content[1].source.url, 'https://example.com/cat.png');
     assert.equal(body.messages[0].content[1].source.data, undefined);
     assert.equal(body.messages[0].content[1].source.media_type, undefined);
+});
+(0, node_test_1.test)('buildRequest 把 ocr/table/chart 模板 prompt 放进 text 位置', () => {
+    for (const prompt of Object.values(templates_1.TASK_TEMPLATES)) {
+        const req = anthropic_1.anthropicAdapter.buildRequest({
+            baseUrl: 'https://api.anthropic.com',
+            model: 'claude-3-5-sonnet-latest',
+            imageDataUrl: 'data:image/png;base64,AAAA',
+            intent: prompt,
+        });
+        const body = req.body;
+        assert.equal(body.messages[0].content[0].type, 'text');
+        assert.equal(body.messages[0].content[0].text, prompt);
+    }
 });

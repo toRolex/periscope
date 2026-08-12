@@ -2,6 +2,7 @@ import { before, after, test } from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { describe, describeMany } from './describe';
+import { TASK_TEMPLATES } from './templates';
 import { HttpTransport } from '../transport';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
@@ -128,6 +129,105 @@ test('describe 透传 intent 到 text 部分', async (t) => {
 
   const body = server.requests[0].jsonBody as any;
   assert.equal(body.messages[0].content[0].text, '用中文描述颜色');
+});
+
+test('describe --intent ocr 请求体使用 OCR 模板 prompt', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const config = writeConfigFile(dir, {
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).config;
+
+  await describe({ imagePath, intent: 'ocr' }, { config });
+
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[0].text, TASK_TEMPLATES.ocr);
+});
+
+test('describe --intent table 请求体使用 table 模板 prompt', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const config = writeConfigFile(dir, {
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).config;
+
+  await describe({ imagePath, intent: 'table' }, { config });
+
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[0].text, TASK_TEMPLATES.table);
+});
+
+test('describe --intent chart 请求体使用 chart 模板 prompt', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const config = writeConfigFile(dir, {
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).config;
+
+  await describe({ imagePath, intent: 'chart' }, { config });
+
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[0].text, TASK_TEMPLATES.chart);
+});
+
+test('describe 自定义 intent 原样透传：模板名保留字之外的文本不被模板化', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const config = writeConfigFile(dir, {
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).config;
+
+  await describe({ imagePath, intent: '把图片中的表格整理成要点' }, { config });
+
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[0].text, '把图片中的表格整理成要点');
+  assert.notEqual(body.messages[0].content[0].text, TASK_TEMPLATES.table);
+});
+
+test('describe --intent ocr 在 anthropic 协议请求体使用 OCR 模板 prompt', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const config = writeConfigFile(dir, {
+    protocol: 'anthropic',
+    anthropic: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).config;
+
+  await describe({ imagePath, intent: 'ocr' }, { config });
+
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[0].text, TASK_TEMPLATES.ocr);
+});
+
+test('describe --intent table 在 responses 协议请求体使用 table 模板 prompt', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const config = writeConfigFile(dir, {
+    protocol: 'responses',
+    responses: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).config;
+
+  await describe({ imagePath, intent: 'table' }, { config });
+
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.input[0].content[0].text, TASK_TEMPLATES.table);
 });
 
 test('describe 端点返回非 2xx 时抛错', async (t) => {

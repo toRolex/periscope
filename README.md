@@ -124,11 +124,11 @@ node dist/cli/describe.js ./demo.png
 ### `describe` — 描述图片
 
 ```
-node dist/cli/describe.js <图片路径或URL> [...] [--intent "描述内容"]
+node dist/cli/describe.js <图片路径或URL> [...] [--intent ocr|table|chart|"描述内容"]
 ```
 
 - `<图片路径或URL>`：本地图片路径或 `http(s)` 图片 URL，可传多个，空格分隔。
-- `--intent "..."`（可选）：描述意图，如 `"读取图片中的文字"`、`"解析图表"`。
+- `--intent ...`（可选）：内置任务模板名 `ocr`（提取文字）/ `table`（转 Markdown 表格）/ `chart`（图表转结构化描述），命中模板名时使用内置 prompt；其他文本原样透传给模型，如 `--intent "读取图片中的报错信息"`；缺省保持默认描述文案。
 - 插件环境里用 `node ${CLAUDE_PLUGIN_ROOT}/dist/cli/describe.js <图片路径或URL> [...]`。
 
 ### `init` — 交互式初始化配置

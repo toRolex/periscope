@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
 import { anthropicAdapter } from './anthropic';
+import { TASK_TEMPLATES } from '../core/templates';
 
 test('buildRequest 构造 anthropic v1/messages 请求', () => {
   const req = anthropicAdapter.buildRequest({
@@ -89,4 +90,18 @@ test('buildRequest 对 http(s) URL 图片使用 url source 而非 base64', () =>
   assert.equal(body.messages[0].content[1].source.url, 'https://example.com/cat.png');
   assert.equal(body.messages[0].content[1].source.data, undefined);
   assert.equal(body.messages[0].content[1].source.media_type, undefined);
+});
+
+test('buildRequest 把 ocr/table/chart 模板 prompt 放进 text 位置', () => {
+  for (const prompt of Object.values(TASK_TEMPLATES)) {
+    const req = anthropicAdapter.buildRequest({
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-3-5-sonnet-latest',
+      imageDataUrl: 'data:image/png;base64,AAAA',
+      intent: prompt,
+    });
+    const body = req.body as any;
+    assert.equal(body.messages[0].content[0].type, 'text');
+    assert.equal(body.messages[0].content[0].text, prompt);
+  }
 });

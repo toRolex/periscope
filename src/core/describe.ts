@@ -4,6 +4,7 @@ import { defaultCacheDir, imageCacheKey, readCacheEntry, writeCacheEntry } from 
 import { loadConfig, PeriscopeConfig } from '../config/config';
 import { getProtocol } from '../protocols';
 import { defaultTransport, HttpTransport } from '../transport';
+import { resolveIntent } from './templates';
 
 export interface DescribeInput {
   /** 图片源：本地路径或 http(s) URL。 */
@@ -83,11 +84,13 @@ export async function describe(
   const cacheDir = opts.cacheDir === undefined ? defaultCacheDir() : opts.cacheDir;
   // 先校验端点：空白模板（未配置 baseUrl/model）应尽早给出可操作报错，而不是等到读图/查缓存之后。
   const { baseUrl, model } = endpointFor(config);
+  // 任务模板解析：命中模板名（ocr/table/chart）替换为模板 prompt，自定义文本原样透传，缺省保持默认描述。
+  const intent = resolveIntent(input.intent);
 
   let cache: { dir: string; key: string } | null = null;
   // 远程 URL 不落本地缓存：缓存 key 依赖本地文件 stat，且远程内容可变。
   if (cacheDir !== null && !REMOTE_URL_RE.test(input.imagePath)) {
-    const key = imageCacheKey(input.imagePath, input.intent);
+    const key = imageCacheKey(input.imagePath, intent);
     cache = { dir: cacheDir, key };
     const cached = readCacheEntry(key, cacheDir);
     if (cached !== undefined) return cached;
@@ -99,7 +102,7 @@ export async function describe(
     baseUrl,
     model,
     imageDataUrl: imageUrl,
-    intent: input.intent,
+    intent,
     apiKey: config.apiKey || undefined,
   });
 

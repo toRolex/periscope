@@ -41,6 +41,7 @@ const node_child_process_1 = require("node:child_process");
 const node_util_1 = require("node:util");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
+const templates_1 = require("../core/templates");
 const execFileP = (0, node_util_1.promisify)(node_child_process_1.execFile);
 /** 编译后测试位于 dist/cli/，三个独立脚本入口即同目录的 describe.js / doctor.js / init.js（命令分发器 index.js 已删除）。 */
 const DESCRIBE_ENTRY = path.join(__dirname, 'describe.js');
@@ -75,6 +76,25 @@ function cliEnv(configPath) {
     const body = server.requests[0].jsonBody;
     assert.equal(body.messages[0].content[0].text, '看看猫');
     assert.equal(body.messages[0].content[1].image_url.url.startsWith('data:image/png;base64,'), true);
+});
+(0, node_test_1.test)('describe 脚本 --intent ocr 请求体使用 OCR 模板 prompt', async (t) => {
+    const server = await (0, mock_server_1.createMockServer)();
+    t.after(() => server.close());
+    const dir = (0, fixtures_1.makeTempDir)();
+    const imagePath = (0, fixtures_1.writeFixtureImage)(dir);
+    const configPath = (0, fixtures_1.writeConfigFile)(dir, {
+        openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+    }).path;
+    const { stdout, stderr } = await execFileP(process.execPath, [
+        DESCRIBE_ENTRY,
+        imagePath,
+        '--intent',
+        'ocr',
+    ], { env: cliEnv(configPath) });
+    assert.equal(stdout, 'mock 默认描述\n');
+    assert.equal(stderr, '');
+    const body = server.requests[0].jsonBody;
+    assert.equal(body.messages[0].content[0].text, templates_1.TASK_TEMPLATES.ocr);
 });
 (0, node_test_1.test)('describe 脚本首次运行自动生成空白模板配置文件（三协议 baseUrl/model 为空串）', async () => {
     const dir = (0, fixtures_1.makeTempDir)();

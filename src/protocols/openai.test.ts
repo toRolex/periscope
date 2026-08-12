@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
 import { openaiAdapter } from './openai';
+import { TASK_TEMPLATES } from '../core/templates';
 
 test('buildRequest 构造 openai chat/completions 请求', () => {
   const req = openaiAdapter.buildRequest({
@@ -73,4 +74,18 @@ test('extractText 对非 JSON 响应透传原始文本', () => {
 test('extractText 对缺少 content 的响应透传原始文本', () => {
   const raw = '{"error":{"message":"bad request"}}';
   assert.equal(openaiAdapter.extractText(raw), raw);
+});
+
+test('buildRequest 把 ocr/table/chart 模板 prompt 放进 text 位置', () => {
+  for (const prompt of Object.values(TASK_TEMPLATES)) {
+    const req = openaiAdapter.buildRequest({
+      baseUrl: 'https://dashscope.example/v1',
+      model: 'qwen-vl-max',
+      imageDataUrl: 'data:image/png;base64,AAAA',
+      intent: prompt,
+    });
+    const body = req.body as any;
+    assert.equal(body.messages[0].content[0].type, 'text');
+    assert.equal(body.messages[0].content[0].text, prompt);
+  }
 });

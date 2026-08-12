@@ -6,6 +6,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, makeTestEnv, writeConfigFile, writeFixtureImage, PLUGIN_SCHEMA_1_0_0 } from '../testing/fixtures';
+import { TASK_TEMPLATES } from '../core/templates';
 
 const execFileP = promisify(execFile);
 /** 编译后测试位于 dist/cli/，三个独立脚本入口即同目录的 describe.js / doctor.js / init.js（命令分发器 index.js 已删除）。 */
@@ -52,6 +53,29 @@ test('describe 脚本输出纯文本描述到 stdout 并以 0 退出', async (t)
     body.messages[0].content[1].image_url.url.startsWith('data:image/png;base64,'),
     true,
   );
+});
+
+test('describe 脚本 --intent ocr 请求体使用 OCR 模板 prompt', async (t) => {
+  const server = await createMockServer();
+  t.after(() => server.close());
+
+  const dir = makeTempDir();
+  const imagePath = writeFixtureImage(dir);
+  const configPath = writeConfigFile(dir, {
+    openai: { baseUrl: server.baseUrl, model: 'vision-model' },
+  }).path;
+
+  const { stdout, stderr } = await execFileP(process.execPath, [
+    DESCRIBE_ENTRY,
+    imagePath,
+    '--intent',
+    'ocr',
+  ], { env: cliEnv(configPath) });
+
+  assert.equal(stdout, 'mock 默认描述\n');
+  assert.equal(stderr, '');
+  const body = server.requests[0].jsonBody as any;
+  assert.equal(body.messages[0].content[0].text, TASK_TEMPLATES.ocr);
 });
 
 test('describe 脚本首次运行自动生成空白模板配置文件（三协议 baseUrl/model 为空串）', async () => {
