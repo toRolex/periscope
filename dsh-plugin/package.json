@@ -1,0 +1,18 @@
+{
+  "name": "periscope-dsh",
+  "version": "0.1.0",
+  "description": "periscope 的 dsh（deepseek-harness）原生插件包 —— describe 引擎副本（图片字节输入），与主仓同构的零依赖 tsc && node --test 脚手架",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/core/describe.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
