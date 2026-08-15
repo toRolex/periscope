@@ -217,7 +217,7 @@ test('describeEffective：settings/user > cordis/base > env fallback 的归并�
     [VISION_ENV.baseUrl]: 'https://env.example.com/v1',
     [VISION_ENV.model]: 'env-model',
   };
-  const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, env);
+  const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, { env });
   const result = await handler('describeEffective', null);
   assert.equal(result.ok, true);
   if (!result.ok) return;
@@ -241,7 +241,7 @@ test('describeEffective：user 层缺省时 cordis/env 生效并标记来源', a
     [VISION_ENV.protocol]: 'responses',
     [VISION_ENV.model]: 'env-model',
   };
-  const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, env);
+  const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, { env });
   const result = await handler('describeEffective', null);
   assert.equal(result.ok, true);
   if (!result.ok) return;

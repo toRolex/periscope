@@ -32,6 +32,7 @@ import {
   VisionConfigEnv,
   VisionConfigInput,
   VisionSettingsSection,
+  isPresent,
   normalizeSettingsSection,
   resolveVisionConfigWithSettings,
 } from './vision-config.js';
@@ -120,11 +121,6 @@ export interface PeriscopeEffectiveRead {
   configured: boolean;
 }
 
-/** 字段非空白判定（与 vision-config 的 firstPresent 一致：空白串视为未配置）。 */
-function present(value: unknown): boolean {
-  return typeof value === 'string' && value.trim() !== '';
-}
-
 /** 取字段来源：settings（非空白）> cordis（非空白）> env fallback（apiKeyEnv 无 env 位）> 默认。 */
 function effectiveSourceOf(
   field: 'protocol' | 'baseUrl' | 'model' | 'apiKeyEnv',
@@ -132,9 +128,9 @@ function effectiveSourceOf(
   cordis: Record<string, unknown>,
   env: VisionConfigEnv,
 ): PeriscopeEffectiveSource {
-  if (present(settingsNorm[field])) return 'settings';
-  if (present(cordis[field])) return 'cordis';
-  if (field !== 'apiKeyEnv' && present(env[VISION_ENV[field]])) return 'env';
+  if (isPresent(settingsNorm[field])) return 'settings';
+  if (isPresent(cordis[field])) return 'cordis';
+  if (field !== 'apiKeyEnv' && isPresent(env[VISION_ENV[field]])) return 'env';
   return 'default';
 }
 
@@ -221,13 +217,21 @@ function parseUpdatePayload(payload: unknown): ParsedUpdate {
   return { ok: true, value: { patch: payload.patch, expectedRevision } };
 }
 
+/** 把调用方异常折叠为 settings-rejected 错误分支（wire schema 兼容：details.ns）。 */
+function foldSettingsError(ns: string, caught: unknown): { ok: false; error: PeriscopeRpcError } {
+  return {
+    ok: false,
+    error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
+  };
+}
+
 /**
  * 构造 /periscope channel 的 RPC handler（endpoint 分发：describe 读 / describeEffective 归并生效 /
  * update 写 / ping 探测）。
  * @param port - settings 服务的最小访问面（壳层注入；服务直调，绕开网关白名单）。
  * @param ns - periscope settings 命名空间名，写进 settings-rejected 错误的 details.ns（wire schema 要求）。
- * @param options - 第三参二义：VisionConfigEnv（#35 describeEffective 注入 env 面，默认 process.env）或
- *   PeriscopeRpcHandlerOptions（#36 注入 probe / env）。缺省 {}（env 空面、probe 缺省）。
+ * @param options - 注入面：env（describeEffective 归并计算用的环境变量面，默认 process.env）与
+ *   probe（/periscope ping 端点，缺省返回 bad-request）。统一为单个 options 对象，不做二义判别。
  * 与 dsh 的 ConnectionRpcHandler 形状结构兼容（endpoint + payload + signal → RpcResult）；
  * signal 对齐 dsh 传入的浏览器取消信号（本 handler 不消费，仅声明；可选类型保持与既有调用
  * 兼容，且结构上仍可赋给 dsh 三参必填的 ConnectionRpcHandler）。所有失败都折叠进错误分支，
@@ -236,14 +240,9 @@ function parseUpdatePayload(payload: unknown): ParsedUpdate {
 export function makePeriscopeRpcHandler(
   port: PeriscopeSettingsPort,
   ns: string,
-  options: VisionConfigEnv | PeriscopeRpcHandlerOptions = {},
+  options: PeriscopeRpcHandlerOptions = {},
 ): (endpoint: string, payload: unknown, signal?: AbortSignal) => Promise<PeriscopeRpcResult<unknown>> {
-  // 第三参二义：#35 的 describeEffective 以 VisionConfigEnv 注入 env 面；#36 的 ping 以
-  // PeriscopeRpcHandlerOptions 注入 probe。以是否携带 probe 键判别（probe 值本身绝不为 env 键）。
-  const probeOptions: PeriscopeRpcHandlerOptions =
-    'probe' in options ? (options as PeriscopeRpcHandlerOptions) : {};
-  const env: VisionConfigEnv =
-    'probe' in options ? (probeOptions.env ?? process.env) : (options as VisionConfigEnv);
+  const env: VisionConfigEnv = options.env ?? process.env;
   return async (endpoint, payload, _signal) => {
     switch (endpoint) {
       case 'describe': {
@@ -251,20 +250,14 @@ export function makePeriscopeRpcHandler(
           const read = port.read();
           return { ok: true, value: read ?? { registered: false } };
         } catch (caught) {
-          return {
-            ok: false,
-            error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
-          };
+          return foldSettingsError(ns, caught);
         }
       }
       case 'describeEffective': {
         try {
           return { ok: true, value: effectiveFromRead(port.read(), env) };
         } catch (caught) {
-          return {
-            ok: false,
-            error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
-          };
+          return foldSettingsError(ns, caught);
         }
       }
       case 'update': {
@@ -274,26 +267,20 @@ export function makePeriscopeRpcHandler(
           await port.update(parsed.value.patch, parsed.value.expectedRevision);
           return { ok: true, value: null };
         } catch (caught) {
-          return {
-            ok: false,
-            error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
-          };
+          return foldSettingsError(ns, caught);
         }
       }
       case 'ping': {
         // 探测的不可达是正常结果（value 内 ok:false），不折叠进 RPC 错误分支；
         // 仅 probe 能力缺失 / 意外抛错时进错误分支（探测实现本身绝不抛错）。
-        if (probeOptions.probe === undefined) {
+        if (options.probe === undefined) {
           return { ok: false, error: badRequest('connection 探测能力不可用（probe 未注入）') };
         }
         try {
-          const value = await probeOptions.probe.ping();
+          const value = await options.probe.ping();
           return { ok: true, value };
         } catch (caught) {
-          return {
-            ok: false,
-            error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
-          };
+          return foldSettingsError(ns, caught);
         }
       }
       default:

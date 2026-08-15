@@ -20,10 +20,14 @@ export const DEFAULT_VISION_API_KEY_ENV = 'PERISCOPE_API_KEY';
 /** protocol 的缺省值：仅指请求形状（openai 兼容协议），不绑定任何服务商。 */
 export const DEFAULT_VISION_PROTOCOL = 'openai';
 const VALID_PROTOCOLS = ['openai', 'anthropic', 'responses'];
+/** 字段是否非空白字符串（空白/缺省/非字符串均视为未配置）。settings-rpc 的来源标记复用此判定。 */
+export function isPresent(value) {
+    return typeof value === 'string' && value.trim() !== '';
+}
 /** 第一个「非空白字符串」候选；空白/缺省视为未配置。 */
 function firstPresent(...candidates) {
     for (const candidate of candidates) {
-        if (typeof candidate === 'string' && candidate.trim() !== '')
+        if (isPresent(candidate))
             return candidate.trim();
     }
     return undefined;

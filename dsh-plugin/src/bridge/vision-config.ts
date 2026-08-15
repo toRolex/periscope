@@ -55,10 +55,15 @@ export interface ResolvedVisionConfig {
   apiKey: string;
 }
 
+/** 字段是否非空白字符串（空白/缺省/非字符串均视为未配置）。settings-rpc 的来源标记复用此判定。 */
+export function isPresent(value: unknown): boolean {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
 /** 第一个「非空白字符串」候选；空白/缺省视为未配置。 */
 function firstPresent(...candidates: (string | undefined)[]): string | undefined {
   for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim() !== '') return candidate.trim();
+    if (isPresent(candidate)) return (candidate as string).trim();
   }
   return undefined;
 }

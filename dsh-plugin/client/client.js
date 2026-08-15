@@ -96,17 +96,23 @@ window.__ModuleLoader__.load({
       return ''
     }
 
-    /** describe 结果 → 表单初值：取 settings 命名空间的当前解析值（user 层已叠 base/默认）。 */
+    /**
+     * describe 结果 → 表单初值：只取 settings **user 层**存储值（read.user），不预填
+     * base/cordis.yml 来源。若从 resolved 值预填，一次保存会把 cordis.yml 的非空字段
+     * 复制进 user 层并永久遮蔽 cordis 后续修改（review 发现的 Spec 隐患）；生效的归并值
+     * 由 describeEffective 只读区回显，表单保持「仅 user 层 + 空」即可。
+     */
     function formFromRead(read) {
-      if (!read || read.ok !== true || !read.value || read.value.registered === false || !read.value.value) {
+      if (!read || read.ok !== true || !read.value || read.value.registered === false) {
         return emptyForm()
       }
-      var v = read.value.value
+      var user = read.value.user
+      if (!user || typeof user !== 'object') return emptyForm()
       return {
-        protocol: v.protocol || 'openai',
-        baseUrl: typeof v.baseUrl === 'string' ? v.baseUrl : '',
-        model: typeof v.model === 'string' ? v.model : '',
-        apiKeyEnv: typeof v.apiKeyEnv === 'string' ? v.apiKeyEnv : '',
+        protocol: user.protocol || 'openai',
+        baseUrl: typeof user.baseUrl === 'string' ? user.baseUrl : '',
+        model: typeof user.model === 'string' ? user.model : '',
+        apiKeyEnv: typeof user.apiKeyEnv === 'string' ? user.apiKeyEnv : '',
       }
     }
 
@@ -144,7 +150,8 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function renderTextField(field, label, value, placeholder, onChange) {
+    function renderTextField(field, label, value, placeholder, onChange, opts) {
+      var options = opts || {}
       return React.createElement('label', { className: 'periscope-field' },
         React.createElement('span', { className: 'periscope-label' }, label),
         React.createElement('input', {
@@ -154,25 +161,20 @@ window.__ModuleLoader__.load({
           placeholder: placeholder,
           onChange: function (e) { onChange(field, e.target.value) },
         }),
+        options.hint
+          ? React.createElement('span', { className: 'periscope-hint' }, options.hint)
+          : null,
+        options.error
+          ? React.createElement('span', { className: 'periscope-error', 'data-error': field }, options.error)
+          : null,
       )
     }
 
     function renderApiKeyEnvField(value, error, onChange) {
-      return React.createElement('label', { className: 'periscope-field' },
-        React.createElement('span', { className: 'periscope-label' }, 'apiKey 环境变量名'),
-        React.createElement('input', {
-          'data-field': 'apiKeyEnv',
-          type: 'text',
-          value: value,
-          placeholder: 'PERISCOPE_API_KEY',
-          onChange: function (e) { onChange('apiKeyEnv', e.target.value) },
-        }),
-        React.createElement('span', { className: 'periscope-hint' },
-          '只填环境变量名（如 PERISCOPE_API_KEY），不填字面 key；本地无鉴权端点可留空'),
-        error
-          ? React.createElement('span', { className: 'periscope-error', 'data-error': 'apiKeyEnv' }, error)
-          : null,
-      )
+      return renderTextField('apiKeyEnv', 'apiKey 环境变量名', value, 'PERISCOPE_API_KEY', onChange, {
+        hint: '只填环境变量名（如 PERISCOPE_API_KEY），不填字面 key；本地无鉴权端点可留空',
+        error: error,
+      })
     }
 
     function errorTextOf(res) {
@@ -182,13 +184,6 @@ window.__ModuleLoader__.load({
         if (json && json !== '{}') return json
       }
       return '未知错误'
-    }
-
-    /** 消息的 data-status：saved / busy / error 三态（对齐 msg 语义，供样式与测试锚点）。 */
-    function msgStatus(msg) {
-      if (msg === '已保存') return 'saved'
-      if (msg === '保存中…') return 'busy'
-      return 'error'
     }
 
     // ── #35 生效值回显（describeEffective：settings > cordis.yml > env 归并结果） ──
@@ -260,7 +255,9 @@ window.__ModuleLoader__.load({
       var draftState = React.useState(null)
       var draft = draftState[0]
       var setDraft = draftState[1]
-      var msgState = React.useState('')
+      // 全局消息：{ status, text } 结构化（status 三态 saved/busy/error，供样式与测试锚点；
+      // 状态不依赖文案，改文案不破坏状态判定）。null = 无消息。
+      var msgState = React.useState(null)
       var msg = msgState[0]
       var setMsg = msgState[1]
       var busyState = React.useState(false)
@@ -288,7 +285,7 @@ window.__ModuleLoader__.load({
           })
           .catch(function (e) {
             if (cancelled) return
-            setMsg('读取配置失败：' + (e && e.message ? e.message : String(e)))
+            setMsg({ status: 'error', text: '读取配置失败：' + (e && e.message ? e.message : String(e)) })
           })
         // 归并生效值（settings > cordis.yml > env）供只读回显；失败不阻断表单。
         Promise.resolve(conn.rpc.call('/periscope', 'describeEffective', null))
@@ -309,7 +306,7 @@ window.__ModuleLoader__.load({
 
       function onChange(field, value) {
         setDraft(withField(draft, field, value))
-        setMsg('')
+        setMsg(null)
         // #36：探测的是已保存配置；草稿被编辑后旧探测结果失效，清空避免误以为新草稿已被探测。
         setPing(null)
       }
@@ -319,13 +316,13 @@ window.__ModuleLoader__.load({
         // 非法 apiKeyEnv 由字段内联错误提示展示，这里不再写全局 msg（避免同一错误两处重复）。
         if (validateApiKeyEnv(draft.apiKeyEnv)) return
         setBusy(true)
-        setMsg('保存中…')
+        setMsg({ status: 'busy', text: '保存中…' })
         Promise.resolve(conn.rpc.call('/periscope', 'update', { patch: patchFromForm(draft) }))
           .then(function (res) {
             setBusy(false)
             if (res && res.ok) {
               setLoaded(draft)
-              setMsg('已保存')
+              setMsg({ status: 'saved', text: '已保存' })
               // 保存已改写 user 层：重读归并生效值，让「当前生效配置」只读区与刚写入的新值同步。
               Promise.resolve(conn.rpc.call('/periscope', 'describeEffective', null))
                 .then(function (effRes) {
@@ -335,19 +332,19 @@ window.__ModuleLoader__.load({
               // 保存后当前生效配置变更，旧的探测结果已过时，清空待下次探测。
               setPing(null)
             } else {
-              setMsg('保存失败：' + errorTextOf(res))
+              setMsg({ status: 'error', text: '保存失败：' + errorTextOf(res) })
             }
           })
           .catch(function (e) {
             setBusy(false)
-            setMsg('保存失败：' + (e && e.message ? e.message : String(e)))
+            setMsg({ status: 'error', text: '保存失败：' + (e && e.message ? e.message : String(e)) })
           })
       }
 
       function onDiscard() {
         if (busy) return
         setDraft(loaded || emptyForm())
-        setMsg('')
+        setMsg(null)
       }
 
       /**
@@ -397,7 +394,7 @@ window.__ModuleLoader__.load({
           ping.text,
           ping.hint ? React.createElement('div', { className: 'periscope-hint', 'data-ping-hint': true }, ping.hint) : null,
         ) : null,
-        msg ? React.createElement('div', { className: 'periscope-msg', 'data-status': msgStatus(msg) }, msg) : null,
+        msg ? React.createElement('div', { className: 'periscope-msg', 'data-status': msg.status }, msg.text) : null,
       )
     }
 

@@ -203,7 +203,13 @@ function registerPeriscopeRpc(ctx: Context, resolveVision: () => ResolvedVisionC
         await provider.update(NS, patch, expectedRevision);
       },
     };
-    connectionCtx.connection.rpc.handle(
+    // inject(['connection']) 声明了依赖，回调内 connection 必然就绪（可选类型下的显式断言）。
+    const rpc = connectionCtx.connection?.rpc;
+    if (rpc === undefined) {
+      ctx.logger.warn('[periscope] connection 服务缺省：/periscope RPC channel 未注册，配置卡片读写不可用');
+      return;
+    }
+    rpc.handle(
       '/periscope',
       makePeriscopeRpcHandler(port, NS, {
         probe: {

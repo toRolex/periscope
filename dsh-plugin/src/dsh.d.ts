@@ -134,16 +134,17 @@ declare module '@deepseek-ai/cordis' {
   }
 
   /**
-   * cordis 插件上下文。llm / attachments / logger / settings / connection 为源码核实的服务挂点
-   * （settings / connection 经 inject 可选挂载，见 #33：installSettingsSection 与 connection RPC）。
+   * cordis 插件上下文。llm / attachments / logger 为源码核实的必给服务挂点；
+   * settings / connection 经 inject 可选挂载（见 #33：installSettingsSection 与 connection RPC），
+   * 声明为可选以反映「缺省时插件以 cordis.yml + env 工作」的真实性。
    * 会话服务经通用 get('sessions') 逃逸口取（推断挂点，见 plugin.ts 注释——手工 E2E 首要核实地）。
    */
   export class Context {
     llm: LlmService;
     logger: Logger;
     attachments: AttachmentStore;
-    settings: SettingsProvider;
-    connection: HostConnectionHandle;
+    settings?: SettingsProvider;
+    connection?: HostConnectionHandle;
     get(name: string): unknown;
     /**
      * 依赖服务就绪后运行回调（cordis 源码核实的注入面，installSettingsSection 也用它）。

@@ -39,7 +39,7 @@ test('Seam 3 端到端冒烟：settings 写入 → 插件读配置 → describe 
     const base = { baseUrl: server.baseUrl };
     const settings = fakeSettings(base);
     const env = { PERISCOPE_VISION_MODEL: 'env-model' };
-    const handler = makePeriscopeRpcHandler(settings, 'periscope', env);
+    const handler = makePeriscopeRpcHandler(settings, 'periscope', { env });
     // 1) settings 写入（经 RPC update 端点合并写 user 层）
     const updateResult = await handler('update', { patch: { model: 'settings-model' } });
     assert.equal(updateResult.ok, true);
@@ -74,7 +74,7 @@ test('Seam 3：仅 cordis.yml + env（settings 不写入）→ 生效值回显�
     const base = { baseUrl: server.baseUrl, model: 'yml-model' };
     const settings = fakeSettings(base);
     const env = { PERISCOPE_VISION_MODEL: 'env-model' };
-    const handler = makePeriscopeRpcHandler(settings, 'periscope', env);
+    const handler = makePeriscopeRpcHandler(settings, 'periscope', { env });
     const effResult = await handler('describeEffective', null);
     assert.equal(effResult.ok, true);
     if (!effResult.ok)
@@ -96,7 +96,7 @@ test('Seam 3：仅 env（settings/cordis 均无）→ env 生效值并完成 des
     t.after(() => server.close());
     const settings = fakeSettings({});
     const env = { PERISCOPE_VISION_BASE_URL: server.baseUrl, PERISCOPE_VISION_MODEL: 'env-model' };
-    const handler = makePeriscopeRpcHandler(settings, 'periscope', env);
+    const handler = makePeriscopeRpcHandler(settings, 'periscope', { env });
     const effResult = await handler('describeEffective', null);
     assert.equal(effResult.ok, true);
     if (!effResult.ok)

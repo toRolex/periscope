@@ -117,11 +117,17 @@ test('卡片渲染 protocol 下拉（三值）+ baseUrl / model / apiKeyEnv 字�
     assert.equal(renderer.root.findByProps({ 'data-action': 'save' }).type, 'button');
     assert.equal(renderer.root.findByProps({ 'data-action': 'discard' }).type, 'button');
 });
-test('挂载时经 connection.rpc.call(/periscope, describe) 读当前存储值并回填字段', async () => {
+test('挂载时经 connection.rpc.call(/periscope, describe) 读当前存储值（user 层）并回填字段', async () => {
     const read = {
         ok: true,
         value: {
             value: {
+                protocol: 'anthropic',
+                baseUrl: 'https://base.example.com/v1',
+                model: 'vision-model',
+                apiKeyEnv: 'PERISCOPE_VISION_KEY',
+            },
+            user: {
                 protocol: 'anthropic',
                 baseUrl: 'https://base.example.com/v1',
                 model: 'vision-model',
@@ -138,6 +144,37 @@ test('挂载时经 connection.rpc.call(/periscope, describe) 读当前存储值�
     assert.equal(renderer.root.findByProps({ 'data-field': 'baseUrl' }).props.value, 'https://base.example.com/v1');
     assert.equal(renderer.root.findByProps({ 'data-field': 'model' }).props.value, 'vision-model');
     assert.equal(renderer.root.findByProps({ 'data-field': 'apiKeyEnv' }).props.value, 'PERISCOPE_VISION_KEY');
+});
+test('表单只预填 user 层：cordis.yml 有值但 user 层缺省时不回填 cordis 值（保存不冻结 cordis 源字段）', async () => {
+    // Spec 回归（review 发现）：表单若从 resolved 值（含 base/cordis 层）预填，一次保存会把
+    // cordis.yml 的非空字段复制进 settings user 层、永久遮蔽 cordis 后续修改。修复后表单只读
+    // user 层存储值，cordis/env 值由 describeEffective 只读区回显——此处断言预填为空。
+    const read = {
+        ok: true,
+        value: {
+            // resolved 值含 cordis base 层（模拟 cordis.yml 已配 baseUrl/model），但 user 层缺省。
+            value: { protocol: 'openai', baseUrl: 'https://cordis.example.com/v1', model: 'cordis-model', apiKeyEnv: 'CORDIS_KEY' },
+            base: { protocol: 'openai', baseUrl: 'https://cordis.example.com/v1', model: 'cordis-model', apiKeyEnv: 'CORDIS_KEY' },
+            revision: 0,
+        },
+    };
+    const { calls, registered } = bench(read);
+    const renderer = await renderCard(registered);
+    // 表单初值应为空（不预填 cordis 来源）：protocol 回默认、其余字段空。
+    assert.equal(renderer.root.findByProps({ 'data-field': 'protocol' }).props.value, 'openai');
+    assert.equal(renderer.root.findByProps({ 'data-field': 'baseUrl' }).props.value, '');
+    assert.equal(renderer.root.findByProps({ 'data-field': 'model' }).props.value, '');
+    assert.equal(renderer.root.findByProps({ 'data-field': 'apiKeyEnv' }).props.value, '');
+    // 直接保存（不编辑）：patch 不得包含 cordis 的非空值——写空串清 user 覆盖、回落更低来源。
+    const save = renderer.root.findByProps({ 'data-action': 'save' });
+    await TestRenderer.act(async () => {
+        save.props.onClick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const updateCall = requireCall(calls, 'update');
+    const patch = updateCall.payload.patch;
+    assert.equal(patch.baseUrl, '', '不得把 cordis baseUrl 冻结进 user 层');
+    assert.equal(patch.model, '', '不得把 cordis model 冻结进 user 层');
 });
 test('保存经 connection.rpc.call(/periscope, update, {patch}) 写 settings（四字段齐全）', async () => {
     const { calls, registered } = bench();
@@ -264,6 +301,7 @@ test('discard 还原 staged 编辑为已加载值', async () => {
         ok: true,
         value: {
             value: { protocol: 'openai', baseUrl: 'https://orig.example.com/v1', model: 'orig-model', apiKeyEnv: '' },
+            user: { protocol: 'openai', baseUrl: 'https://orig.example.com/v1', model: 'orig-model', apiKeyEnv: '' },
             revision: 0,
         },
     };
