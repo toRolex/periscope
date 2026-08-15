@@ -292,3 +292,59 @@ test('describeEffective：configured 判定仅依赖 baseUrl/model（protocol �
     assert.equal(value.value.protocol, 'anthropic');
     assert.equal(value.configured, false, '仅配 protocol、缺 baseUrl/model → 未就绪');
 });
+// ── #36 ping（连接探测：分发到注入的 probe，网络归 host half） ──
+test('ping 端点：分发到注入的 probe.ping，探测结果原样经 value 返回', async () => {
+    const probeResult = { ok: true, message: '端点可达（HTTP 200）' };
+    const calls = [];
+    const handler = makePeriscopeRpcHandler(fakePort(), NS, {
+        probe: {
+            ping: async () => {
+                calls.push('ping');
+                return probeResult;
+            },
+        },
+    });
+    const result = await handler('ping', null);
+    assert.deepEqual(result, { ok: true, value: probeResult });
+    assert.deepEqual(calls, ['ping']);
+});
+test('ping 端点：不可达结果（ok:false + hint）经 value 原样回传（RPC 层仍是 ok）', async () => {
+    const probeResult = {
+        ok: false,
+        message: '端点返回 HTTP 401',
+        hint: '检查 baseUrl 路径是否正确、apiKey 环境变量（apiKeyEnv）是否已设置',
+    };
+    const handler = makePeriscopeRpcHandler(fakePort(), NS, {
+        probe: { ping: async () => probeResult },
+    });
+    const result = await handler('ping', null);
+    assert.equal(result.ok, true, '探测的不可达是正常 RPC 结果，不折叠进 RPC 错误分支');
+    if (result.ok) {
+        assert.deepEqual(result.value, probeResult);
+    }
+});
+test('ping 端点：未注入 probe → bad-request（探测能力不可用）', async () => {
+    const handler = makePeriscopeRpcHandler(fakePort(), NS);
+    const result = await handler('ping', null);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+        assert.equal(result.error.code, 'bad-request');
+        assert.deepEqual(result.error.details, { issues: [] });
+    }
+});
+test('ping 端点：probe.ping 意外抛错 → 折叠为 settings-rejected 错误分支，不抛错', async () => {
+    const handler = makePeriscopeRpcHandler(fakePort(), NS, {
+        probe: {
+            ping: async () => {
+                throw new Error('probe exploded');
+            },
+        },
+    });
+    const result = await handler('ping', null);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+        assert.equal(result.error.code, 'settings-rejected');
+        assert.match(result.error.message, /probe exploded/);
+        assert.deepEqual(result.error.details, { ns: NS });
+    }
+});

@@ -1,5 +1,5 @@
 /**
- * periscope-dsh browser half —— 视觉端点配置卡片（issue #34）+ 生效值回显/未配置引导（issue #35）。
+ * periscope-dsh browser half —— 视觉端点配置卡片（issue #34 + #35 生效值回显/未配置引导 + #36 连通性校验）。
  *
  * 装载面：client-modules（机制 B，spike #32 实证）。本文件是手写 CJS factory bundle，
  * 与 tsdown `clientBundle()` 产物同构：
@@ -20,6 +20,8 @@
  * #35 生效值回显：只读区展示归并生效值与每字段来源（settings/cordis.yml/env/默认），
  * 已有 cordis.yml/env 配置的用户不重复填写、能看到优先级结果；未配置（baseUrl/model 空白）时
  * 给出可操作引导（指向本卡片表单或 env 位置）。
+ * #36 连接探测：卡片「测试连接」按钮经 `/periscope` `ping` 端点调 server 侧探测当前生效
+ * 端点可达性（fetch/network 归 host half，浏览器沙盒不能直接发网络请求），结果回显在卡片。
  * apiKey 字段只收**环境变量名**：空允许（本地无鉴权端点可留空）；非空须匹配合法环境变量名
  * 模式（/^[A-Za-z_][A-Za-z0-9_]*$/）。形如 sk-… 的字面 key 因含连字符/点号被拒；纯字母数字
  * 的字面 key 与 env 名无法区分，属尽力而为的 UI 卫生——真正的安全边界在 server 侧：key 只从
@@ -64,7 +66,10 @@ window.__ModuleLoader__.load({
         'border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:0 4px}' +
         '.periscope-guidance{font-size:12px;color:var(--dsw-alias-label-secondary);' +
         'background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);' +
-        'border-radius:6px;padding:6px 8px}'
+        'border-radius:6px;padding:6px 8px}' +
+        // #36 连接探测结果：可达用主文本色、不可达用错误色（复用既有 CSS 变量）。
+        '.periscope-msg[data-ping-result="reachable"]{color:var(--dsw-alias-label-primary)}' +
+        '.periscope-msg[data-ping-result="unreachable"]{color:var(--dsw-alias-label-error)}'
       document.head.appendChild(styleTag)
     }
 
@@ -264,6 +269,13 @@ window.__ModuleLoader__.load({
       var effectiveState = React.useState(null)
       var effective = effectiveState[0]
       var setEffective = effectiveState[1]
+      // #36 连接探测：ping 结果（null | { ok, text, hint? }）与探测中状态（与保存 busy 互不阻塞）。
+      var pingState = React.useState(null)
+      var ping = pingState[0]
+      var setPing = pingState[1]
+      var pingingState = React.useState(false)
+      var pinging = pingingState[0]
+      var setPinging = pingingState[1]
 
       React.useEffect(function () {
         var cancelled = false
@@ -298,6 +310,8 @@ window.__ModuleLoader__.load({
       function onChange(field, value) {
         setDraft(withField(draft, field, value))
         setMsg('')
+        // #36：探测的是已保存配置；草稿被编辑后旧探测结果失效，清空避免误以为新草稿已被探测。
+        setPing(null)
       }
 
       function onSave() {
@@ -318,6 +332,8 @@ window.__ModuleLoader__.load({
                   if (effRes && effRes.ok) setEffective(effRes.value)
                 })
                 .catch(function () {})
+              // 保存后当前生效配置变更，旧的探测结果已过时，清空待下次探测。
+              setPing(null)
             } else {
               setMsg('保存失败：' + errorTextOf(res))
             }
@@ -334,6 +350,37 @@ window.__ModuleLoader__.load({
         setMsg('')
       }
 
+      /**
+       * #36 连接探测：经 connection RPC channel 调 server 侧 /periscope ping 端点。
+       * server 侧用当前生效配置（settings > cordis.yml > env 归并）发起对端点的探测
+       * （网络请求归 host half），结果经 value 回传：v.ok 可达 / v.ok=false 不可达（带
+       * 可操作提示 v.hint）；RPC 层错误折叠为「探测失败」文案。探测不可达是正常结果，
+       * 不写入全局 msg（避免与保存消息混用状态），独立回显在卡片上。
+       */
+      function onPing() {
+        if (pinging || busy) return
+        setPinging(true)
+        setPing(null)
+        Promise.resolve(conn.rpc.call('/periscope', 'ping', null))
+          .then(function (res) {
+            setPinging(false)
+            if (res && res.ok && res.value) {
+              var v = res.value
+              if (v && v.ok) {
+                setPing({ ok: true, text: v.message })
+              } else {
+                setPing({ ok: false, text: v && v.message ? v.message : '端点不可达', hint: v && v.hint })
+              }
+            } else {
+              setPing({ ok: false, text: '探测失败：' + errorTextOf(res) })
+            }
+          })
+          .catch(function (e) {
+            setPinging(false)
+            setPing({ ok: false, text: '探测失败：' + (e && e.message ? e.message : String(e)) })
+          })
+      }
+
       return React.createElement('div', { className: 'periscope-card', 'data-periscope-card': true },
         React.createElement('div', { className: 'periscope-card-title' }, 'periscope 视觉端点'),
         renderEffectiveSection(effective),
@@ -344,7 +391,12 @@ window.__ModuleLoader__.load({
         React.createElement('div', { className: 'periscope-actions' },
           React.createElement('button', { 'data-action': 'save', onClick: onSave, disabled: busy }, '保存'),
           React.createElement('button', { 'data-action': 'discard', onClick: onDiscard, disabled: busy }, '还原'),
+          React.createElement('button', { 'data-action': 'ping', onClick: onPing, disabled: pinging || busy }, pinging ? '探测中…' : '测试连接'),
         ),
+        ping ? React.createElement('div', { className: 'periscope-msg', 'data-ping-result': ping.ok ? 'reachable' : 'unreachable' },
+          ping.text,
+          ping.hint ? React.createElement('div', { className: 'periscope-hint', 'data-ping-hint': true }, ping.hint) : null,
+        ) : null,
         msg ? React.createElement('div', { className: 'periscope-msg', 'data-status': msgStatus(msg) }, msg) : null,
       )
     }

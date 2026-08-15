@@ -17,6 +17,12 @@
  * 错误分支对齐 dsh wire schema（serverResponseSchema 的 rpcErrorSchema 判别联合）：
  * bad-request → details:{issues:[]}，settings-rejected → details:{ns}。details 形状不符会令
  * 浏览器侧 createWebConnectionRpc 以 ZodError 拒绝（review-34 实测），故按 code 产出兼容 details。
+ *
+ * #36 起新增 ping 端点（连接探测）：handler 分发到注入的 probe 端口，网络请求归 host half
+ * （浏览器沙盒不能直接发网络请求）；探测逻辑见 connection-probe.ts（可注入/可测试）。
+ *
+ * 模块头注释刻意置于 import 之前：置于其后会被 tsc 当作被擦除的 type-only 声明
+ * （PeriscopeRpcError）的 leading comment 而丢失（review-36 实测 dist 回归，plugin-load.test.ts 锁定）。
  */
 import { visionEndpointReady } from './stream-core.js';
 import { VISION_ENV, normalizeSettingsSection, resolveVisionConfigWithSettings, } from './vision-config.js';
@@ -98,16 +104,21 @@ function parseUpdatePayload(payload) {
 }
 /**
  * 构造 /periscope channel 的 RPC handler（endpoint 分发：describe 读 / describeEffective 归并生效 /
- * update 写）。
+ * update 写 / ping 探测）。
  * @param port - settings 服务的最小访问面（壳层注入；服务直调，绕开网关白名单）。
  * @param ns - periscope settings 命名空间名，写进 settings-rejected 错误的 details.ns（wire schema 要求）。
- * @param env - 归并生效值计算用的环境变量面（默认 process.env；测试注入受控 env）。
+ * @param options - 第三参二义：VisionConfigEnv（#35 describeEffective 注入 env 面，默认 process.env）或
+ *   PeriscopeRpcHandlerOptions（#36 注入 probe / env）。缺省 {}（env 空面、probe 缺省）。
  * 与 dsh 的 ConnectionRpcHandler 形状结构兼容（endpoint + payload + signal → RpcResult）；
  * signal 对齐 dsh 传入的浏览器取消信号（本 handler 不消费，仅声明；可选类型保持与既有调用
  * 兼容，且结构上仍可赋给 dsh 三参必填的 ConnectionRpcHandler）。所有失败都折叠进错误分支，
  * handler 本身绝不抛错。
  */
-export function makePeriscopeRpcHandler(port, ns, env = process.env) {
+export function makePeriscopeRpcHandler(port, ns, options = {}) {
+    // 第三参二义：#35 的 describeEffective 以 VisionConfigEnv 注入 env 面；#36 的 ping 以
+    // PeriscopeRpcHandlerOptions 注入 probe。以是否携带 probe 键判别（probe 值本身绝不为 env 键）。
+    const probeOptions = 'probe' in options ? options : {};
+    const env = 'probe' in options ? (probeOptions.env ?? process.env) : options;
     return async (endpoint, payload, _signal) => {
         switch (endpoint) {
             case 'describe': {
@@ -140,6 +151,23 @@ export function makePeriscopeRpcHandler(port, ns, env = process.env) {
                 try {
                     await port.update(parsed.value.patch, parsed.value.expectedRevision);
                     return { ok: true, value: null };
+                }
+                catch (caught) {
+                    return {
+                        ok: false,
+                        error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
+                    };
+                }
+            }
+            case 'ping': {
+                // 探测的不可达是正常结果（value 内 ok:false），不折叠进 RPC 错误分支；
+                // 仅 probe 能力缺失 / 意外抛错时进错误分支（探测实现本身绝不抛错）。
+                if (probeOptions.probe === undefined) {
+                    return { ok: false, error: badRequest('connection 探测能力不可用（probe 未注入）') };
+                }
+                try {
+                    const value = await probeOptions.probe.ping();
+                    return { ok: true, value };
                 }
                 catch (caught) {
                     return {

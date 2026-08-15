@@ -42,7 +42,7 @@ const EMPTY_EFFECTIVE = {
     },
 };
 /** 组装假 ctx 并 apply：捕获注册的卡片组件与全部 rpc.call。 */
-function bench(describeResult = EMPTY_READ, updateResult = { ok: true, value: null }, effectiveResult = EMPTY_EFFECTIVE) {
+function bench(describeResult = EMPTY_READ, updateResult = { ok: true, value: null }, effectiveResult = EMPTY_EFFECTIVE, pingResult = { ok: true, value: { ok: true, message: '端点可达（HTTP 200）' } }) {
     const calls = [];
     let registered;
     const rpc = {
@@ -52,6 +52,8 @@ function bench(describeResult = EMPTY_READ, updateResult = { ok: true, value: nu
                 return describeResult;
             if (endpoint === 'describeEffective')
                 return effectiveResult;
+            if (endpoint === 'ping')
+                return pingResult;
             return updateResult;
         },
     };
@@ -421,4 +423,77 @@ test('describeEffective 失败 → 不渲染生效区，表单仍可用', async 
     assert.throws(() => renderer.root.findByProps({ 'data-effective-card': true }), undefined, 'describeEffective 失败不应渲染生效区');
     assert.equal(renderer.root.findByProps({ 'data-field': 'protocol' }).props.value, 'openai');
     assert.equal(renderer.root.findByProps({ 'data-field': 'baseUrl' }).props.value, '');
+});
+// ── #36 连接探测：卡片「测试连接」按钮 ─────────────────────────────────────────────
+test('卡片渲染「测试连接」按钮（data-action=ping），点击前不显示探测结果', async () => {
+    const { registered } = bench();
+    const renderer = await renderCard(registered);
+    const pingBtn = renderer.root.findByProps({ 'data-action': 'ping' });
+    assert.equal(pingBtn.type, 'button');
+    assert.equal(String(pingBtn.props.children), '测试连接');
+    assert.throws(() => renderer.root.findByProps({ 'data-ping-result': 'reachable' }), undefined, '未点击时不应显示探测结果');
+});
+test('点击「测试连接」经 rpc.call(/periscope, ping, null) 探测，可达结果回显', async () => {
+    const pingResult = { ok: true, value: { ok: true, message: '端点可达（HTTP 200）' } };
+    const { calls, registered } = bench(EMPTY_READ, { ok: true, value: null }, undefined, pingResult);
+    const renderer = await renderCard(registered);
+    const pingBtn = renderer.root.findByProps({ 'data-action': 'ping' });
+    await TestRenderer.act(async () => {
+        pingBtn.props.onClick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const pingCall = calls.find((c) => c.endpoint === 'ping');
+    assert.deepEqual(pingCall, { channel: '/periscope', endpoint: 'ping', payload: null });
+    const result = renderer.root.findByProps({ 'data-ping-result': 'reachable' });
+    assert.match(String(result.props.children), /端点可达/);
+});
+test('点击「测试连接」不可达结果回显（data-ping-result=unreachable），含可操作提示', async () => {
+    const pingResult = {
+        ok: true,
+        value: {
+            ok: false,
+            message: '端点返回 HTTP 401',
+            hint: '检查 baseUrl 路径是否正确、apiKey 环境变量（apiKeyEnv）是否已设置',
+        },
+    };
+    const { registered } = bench(EMPTY_READ, { ok: true, value: null }, undefined, pingResult);
+    const renderer = await renderCard(registered);
+    const pingBtn = renderer.root.findByProps({ 'data-action': 'ping' });
+    await TestRenderer.act(async () => {
+        pingBtn.props.onClick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const result = renderer.root.findByProps({ 'data-ping-result': 'unreachable' });
+    assert.match(String(result.props.children), /HTTP 401/);
+    const hintEl = result.findByProps({ 'data-ping-hint': true });
+    assert.match(String(hintEl.props.children), /baseUrl/);
+});
+test('RPC 探测调用失败（ping 返回 RPC 错误分支）→ 卡片显示探测失败文案', async () => {
+    const pingResult = { ok: false, error: { code: 'bad-request', message: 'connection 探测能力不可用', details: { issues: [] } } };
+    const { registered } = bench(EMPTY_READ, { ok: true, value: null }, undefined, pingResult);
+    const renderer = await renderCard(registered);
+    const pingBtn = renderer.root.findByProps({ 'data-action': 'ping' });
+    await TestRenderer.act(async () => {
+        pingBtn.props.onClick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const result = renderer.root.findByProps({ 'data-ping-result': 'unreachable' });
+    assert.match(String(result.props.children), /探测失败/);
+    assert.match(String(result.props.children), /不可用/);
+});
+test('字段编辑（onChange）清空已显示的探测结果（避免误以为新草稿已被探测）', async () => {
+    const pingResult = { ok: true, value: { ok: true, message: '端点可达（HTTP 200）' } };
+    const { registered } = bench(EMPTY_READ, { ok: true, value: null }, undefined, pingResult);
+    const renderer = await renderCard(registered);
+    const pingBtn = renderer.root.findByProps({ 'data-action': 'ping' });
+    await TestRenderer.act(async () => {
+        pingBtn.props.onClick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.ok(renderer.root.findByProps({ 'data-ping-result': 'reachable' }), 'ping 后应显示探测结果');
+    const base = renderer.root.findByProps({ 'data-field': 'baseUrl' });
+    await TestRenderer.act(async () => {
+        base.props.onChange({ target: { value: 'https://edited.example.com/v1' } });
+    });
+    assert.throws(() => renderer.root.findByProps({ 'data-ping-result': 'reachable' }), undefined, '编辑字段后应清空探测结果（探测的是已保存配置，与草稿无关）');
 });

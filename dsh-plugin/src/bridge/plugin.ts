@@ -9,6 +9,7 @@ import { PERISCOPE_PROVIDER } from './route.js';
 import { makeImageDescribedSink } from './stream-core.js';
 import { ResolvedVisionConfig, VisionConfigInput, resolveVisionConfigWithSettings } from './vision-config.js';
 import { PeriscopeSettingsPort, makePeriscopeRpcHandler } from './settings-rpc.js';
+import { makeConnectionProbe } from './connection-probe.js';
 
 /**
  * periscope 的 dsh 原生插件入口（cordis 插件形态，对齐官方 llm-deepseek 适配器的导出形状）。
@@ -77,6 +78,11 @@ import { PeriscopeSettingsPort, makePeriscopeRpcHandler } from './settings-rpc.j
  *    env 配置（如 PERISCOPE_VISION_BASE_URL）时不强制重复填写，来源标 cordis.yml/环境变量；
  *    全部未配置时显示可操作引导（指向本卡片表单或 env 位置）。Seam 3 端到端冒烟见
  *    `src/bridge/e2e-smoke.test.ts`（settings 写入 → 插件读配置 → describe 视觉端点 → mock 返回）。
+ * 【验收点 10：卡片连通性校验（#36）】卡片「测试连接」按钮 → 经 `/periscope` `ping` 端点由 host 侧
+ *    用当前生效配置探测端点可达性（网络归 host half）：可达回显「端点可达（HTTP 200）」，不可达回显
+ *    原因 + 指向 baseUrl / apiKeyEnv / 网络的可操作提示。探测的是**已保存**的生效配置（settings >
+ *    cordis.yml > env），编辑未保存的草稿不影响探测结果。
+ *
  *
  * ── 已知限制与首要核实地（务必读）────────────────────────────────────────────────────────────
  * A. 【image/described 重启拒载 · dsh 缺口】本插件经 declaration merging 扩展 SessionEventMap 后
@@ -167,12 +173,14 @@ export function apply(ctx: Context, config: Config): void {
   });
 
   // connection RPC channel（#33）：host handler 服务直调 ctx.settings，绕开网关白名单。
+  // #36 起注入连接探测（/periscope ping）：网络请求在 host half 发起，探测逻辑见
+  // connection-probe.ts（用当前生效配置构造探测请求，可注入 transport，离线可测）。
   // connection 服务可选：缺省时该通道不注册，插件其余功能不受影响。
-  registerPeriscopeRpc(ctx);
+  registerPeriscopeRpc(ctx, resolveVision);
 }
 
-/** 注册 /periscope connection RPC channel：describe 读当前存储值 / describeEffective 读归并生效值 / update 合并写 user 层。 */
-function registerPeriscopeRpc(ctx: Context): void {
+/** 注册 /periscope connection RPC channel：describe 读当前存储值 / describeEffective 读归并生效值 / update 合并写 user 层 / ping 连接探测。 */
+function registerPeriscopeRpc(ctx: Context, resolveVision: () => ResolvedVisionConfig): void {
   ctx.inject(['connection'], (connectionCtx) => {
     const settings = (): SettingsProvider | undefined =>
       connectionCtx.get('settings') as SettingsProvider | undefined;
@@ -197,7 +205,13 @@ function registerPeriscopeRpc(ctx: Context): void {
     };
     connectionCtx.connection.rpc.handle(
       '/periscope',
-      makePeriscopeRpcHandler(port, NS),
+      makePeriscopeRpcHandler(port, NS, {
+        probe: {
+          // 连接探测（#36）：每次 ping 实时解析当前生效配置（settings > cordis.yml > env），
+          // 网络请求走 host half（makeConnectionProbe 默认全局 fetch，不注入 transport）。
+          ping: makeConnectionProbe({ resolve: resolveVision }),
+        },
+      }),
       { authority: 'loopback' },
     );
   });
