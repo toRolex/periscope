@@ -12,13 +12,13 @@ import { makePeriscopeRpcHandler } from './settings-rpc.js';
  * 校验 cordis.yml 里本插件的配置段）/ apply（入口，注册 periscope-deepseek route）。
  * 另附 default 导出同一插件对象，规避 ESM 宿主 import CommonJS 时命名导出探测的边界。
  *
- * 视觉端点配置三来源（#33，server 侧配置核心，零图形 UI）：
- *   settings 命名空间 `periscope`（user 层，settings.yaml / 后续卡片写入）
+ * 视觉端点配置三来源（#33，server 侧配置核心；浏览器侧配置卡片见 #34 browser half）：
+ *   settings 命名空间 `periscope`（user 层，settings.yaml / 卡片写入）
  *   > cordis.yml entry（base 层，插件配置段）> env fallback（PERISCOPE_VISION_*）。
  *   优先级内建于 installSettingsSection 分层 + vision-config 纯函数的逐字段合并；
  *   apiKey 仍仅从 apiKeyEnv 命名的环境变量读取（字面 key 不是配置值）。
  *   另注册 connection RPC channel `/periscope`（describe 读 / update 写，authority:loopback），
- *   供后续卡片经 ctx.connection.rpc.call 读写——host handler 服务直调 ctx.settings，
+ *   供 browser half 配置卡片经 ctx.connection.rpc.call 读写——host handler 服务直调 ctx.settings，
  *   绕开 api-proxy 的 exposedNamespaces() 白名单（spike #32 实证网关拒第三方命名空间）。
  *
  * ──────────────────────────── 手工 E2E 验收（无法 CI 自动化，需真实 dsh 宿主） ────────────────────────────
@@ -30,7 +30,8 @@ import { makePeriscopeRpcHandler } from './settings-rpc.js';
  * 1) 构建：在本包目录 `npm run build`（tsc 产出 dist/；本包提交 dist/ 以支持 git/file 免构建安装）。
  * 2) 安装到 web profile：`dsh plugin --profile web add file:<本包绝对路径>`（dsh 因本包 package.json
  *    声明 `dsh.bundle.patch` 而把包名追加进 `dsh.profile.bundles`；可用 `dsh --profile web --dump-config`
- *    复查组合后的树里出现了 periscope-deepseek 行）。
+ *    复查组合后的树里出现了 periscope-deepseek 行）。本包另声明 `dsh.client`（browser half），
+ *    因 client-modules 扫描负缓存永不过期，新增声明需**重启 dsh web** 才生效。
  * 3) 配置视觉端点（三来源，apiKey 仅从 env，不写进配置）：
  *    - 方式 A（settings 命名空间，#33）：手改 `~/.dsh/settings.yaml` 的 `periscope:` 段
  *      （protocol / baseUrl / model / apiKeyEnv，user 层优先级最高）。独立验证：改值 → 重启
@@ -55,9 +56,15 @@ import { makePeriscopeRpcHandler } from './settings-rpc.js';
  * 【验收点 6：settings 第三来源（#33）】手改 `~/.dsh/settings.yaml` 的 `periscope:` 段（如改 baseUrl），
  *    重启 dsh web 后发图：请求走新端点（优先级 settings > cordis.yml > env）。settings 服务缺省时
  *    （无 settings 命名空间注册）行为回落 cordis.yml + env，不抛错。
- * 【验收点 7：connection RPC channel（#33）】后续卡片经 `ctx.connection.rpc.call('/periscope', 'describe')`
- *    读到当前存储值；`update` 合并写 user 层并持久化到 settings.yaml（authority:loopback）。
- *    本票只注册 host 侧 handler，浏览器侧调用归后续卡片票。
+ * 【验收点 7：connection RPC channel（#33）+ 配置卡片（#34）】browser half 配置卡片经
+ *    `ctx.connection.rpc.call('/periscope', 'describe')` 读到当前存储值；`update` 合并写 user 层
+ *    并持久化到 settings.yaml（authority:loopback）。host 侧 handler 见本文件 registerPeriscopeRpc，
+ *    卡片实现与 Seam 2 测试见 `client/client.js` 与 `src/client/client.test.ts`。
+ * 【验收点 8：卡片 UI（#34）】Plugins 设置区出现「periscope 视觉端点」卡片：protocol 下拉（openai /
+ *    anthropic / responses）可切换，baseUrl / model / apiKeyEnv 三字段；填表 → 保存 → 重启 dsh web
+ *    → 打开卡片值仍在（读回走 describe）；apiKey 字段填字面 key（如 sk-…）被拒，只收环境变量名；
+ *    discard 还原未保存的编辑。**若卡片未出现**：确认 dsh web 是「新增 dsh.client 声明后」启动的
+ *    （负缓存），且 `dsh --profile web --dump-config` 的 client 图里含 periscope-dsh 行。
  *
  * ── 已知限制与首要核实地（务必读）────────────────────────────────────────────────────────────
  * A. 【image/described 重启拒载 · dsh 缺口】本插件经 declaration merging 扩展 SessionEventMap 后
@@ -162,7 +169,7 @@ function registerPeriscopeRpc(ctx) {
                 await provider.update(NS, patch, expectedRevision);
             },
         };
-        connectionCtx.connection.rpc.handle('/periscope', makePeriscopeRpcHandler(port), { authority: 'loopback' });
+        connectionCtx.connection.rpc.handle('/periscope', makePeriscopeRpcHandler(port, NS), { authority: 'loopback' });
     });
 }
 /** default 导出同一插件对象（CommonJS 被 ESM 宿主 import 时的兜底，见上注释）。 */

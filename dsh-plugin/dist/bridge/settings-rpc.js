@@ -8,10 +8,18 @@
  * 为什么绕开 settings 网关：api-proxy 的 exposedNamespaces() 硬编码白名单拒绝第三方命名空间
  * （spike #32 实证）；官方 connection RPC channel（@deepseek-ai/dsh-client-connection）允许
  * 插件注册包内私有 channel，handler 服务直调 ctx.settings，无白名单层。
+ *
+ * 错误分支对齐 dsh wire schema（serverResponseSchema 的 rpcErrorSchema 判别联合）：
+ * bad-request → details:{issues:[]}，settings-rejected → details:{ns}。details 形状不符会令
+ * 浏览器侧 createWebConnectionRpc 以 ZodError 拒绝（review-34 实测），故按 code 产出兼容 details。
  */
-/** 构造 RPC 错误分支。 */
-function rpcError(code, message) {
-    return { code, message, details: {} };
+/** bad-request 错误分支（details 对齐 wire schema：issues 数组）。 */
+function badRequest(message) {
+    return { code: 'bad-request', message, details: { issues: [] } };
+}
+/** settings-rejected 错误分支（details 对齐 wire schema：ns 字符串）。 */
+function settingsRejected(ns, message) {
+    return { code: 'settings-rejected', message, details: { ns } };
 }
 /** update patch 允许的键（对齐 VisionConfigInput 四可选字段）。未知键拒绝，防 typo 经 settings mergeLayers 持久化进 settings.yaml。 */
 const VISION_SETTINGS_KEYS = ['protocol', 'baseUrl', 'model', 'apiKeyEnv'];
@@ -39,12 +47,14 @@ function parseUpdatePayload(payload) {
 }
 /**
  * 构造 /periscope channel 的 RPC handler（endpoint 分发：describe 读 / update 写）。
+ * @param port - settings 服务的最小访问面（壳层注入；服务直调，绕开网关白名单）。
+ * @param ns - periscope settings 命名空间名，写进 settings-rejected 错误的 details.ns（wire schema 要求）。
  * 与 dsh 的 ConnectionRpcHandler 形状结构兼容（endpoint + payload + signal → RpcResult）；
  * signal 对齐 dsh 传入的浏览器取消信号（本 handler 不消费，仅声明；可选类型保持与既有调用
  * 兼容，且结构上仍可赋给 dsh 三参必填的 ConnectionRpcHandler）。所有失败都折叠进错误分支，
  * handler 本身绝不抛错。
  */
-export function makePeriscopeRpcHandler(port) {
+export function makePeriscopeRpcHandler(port, ns) {
     return async (endpoint, payload, _signal) => {
         switch (endpoint) {
             case 'describe': {
@@ -55,14 +65,14 @@ export function makePeriscopeRpcHandler(port) {
                 catch (caught) {
                     return {
                         ok: false,
-                        error: rpcError('settings-rejected', caught instanceof Error ? caught.message : String(caught)),
+                        error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
                     };
                 }
             }
             case 'update': {
                 const parsed = parseUpdatePayload(payload);
                 if (!parsed.ok)
-                    return { ok: false, error: rpcError('bad-request', parsed.message) };
+                    return { ok: false, error: badRequest(parsed.message) };
                 try {
                     await port.update(parsed.value.patch, parsed.value.expectedRevision);
                     return { ok: true, value: null };
@@ -70,12 +80,12 @@ export function makePeriscopeRpcHandler(port) {
                 catch (caught) {
                     return {
                         ok: false,
-                        error: rpcError('settings-rejected', caught instanceof Error ? caught.message : String(caught)),
+                        error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
                     };
                 }
             }
             default:
-                return { ok: false, error: rpcError('bad-request', `unknown /periscope endpoint "${endpoint}"`) };
+                return { ok: false, error: badRequest(`unknown /periscope endpoint "${endpoint}"`) };
         }
     };
 }

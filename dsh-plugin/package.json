@@ -11,16 +11,21 @@
   },
   "exports": {
     ".": "./dist/bridge/plugin.js",
+    "./client": "./client/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
     }
   },
   "files": [
     "dist",
+    "client",
     "cordis.patch.yml"
   ],
   "scripts": {
@@ -40,6 +45,10 @@
     }
   },
   "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-test-renderer": "^18.2.0",
+    "react": "18.2.0",
+    "react-test-renderer": "18.2.0",
     "typescript": "^5.9.3"
   },
   "engines": {

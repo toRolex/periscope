@@ -8,19 +8,37 @@
  * 为什么绕开 settings 网关：api-proxy 的 exposedNamespaces() 硬编码白名单拒绝第三方命名空间
  * （spike #32 实证）；官方 connection RPC channel（@deepseek-ai/dsh-client-connection）允许
  * 插件注册包内私有 channel，handler 服务直调 ctx.settings，无白名单层。
+ *
+ * 错误分支对齐 dsh wire schema（serverResponseSchema 的 rpcErrorSchema 判别联合）：
+ * bad-request → details:{issues:[]}，settings-rejected → details:{ns}。details 形状不符会令
+ * 浏览器侧 createWebConnectionRpc 以 ZodError 拒绝（review-34 实测），故按 code 产出兼容 details。
  */
 
-/** RPC 错误面（最小契约：code + message + details）。 */
-export type PeriscopeRpcError = { code: string; message: string; details: unknown };
+/**
+ * RPC 错误面（对齐 dsh wire schema 的 rpcErrorSchema 判别联合）。
+ * dsh 浏览器侧 `createWebConnectionRpc` 对每个响应做 `serverResponseSchema.parse`：
+ * error 分支按 code 判别，每种 code 强制具体 details 形状——`bad-request` →
+ * `details:{issues:[...]}`、`settings-rejected` → `details:{ns:string}`。details 缺失
+ * 或形状不符会令浏览器侧以 ZodError 拒绝（真实 message 丢失），故这里按 code 产出
+ * schema 兼容的 details。
+ */
+export type PeriscopeRpcError =
+  | { code: 'bad-request'; message: string; details: { issues: unknown[] } }
+  | { code: 'settings-rejected'; message: string; details: { ns: string } };
 
 /** RPC 结果（对齐 @deepseek-ai/dsh-host-apiproxy/api 的 RpcResult<T> 最小契约）。 */
 export type PeriscopeRpcResult<T = unknown> =
   | { ok: true; value: T }
   | { ok: false; error: PeriscopeRpcError };
 
-/** 构造 RPC 错误分支。 */
-function rpcError(code: string, message: string): PeriscopeRpcError {
-  return { code, message, details: {} };
+/** bad-request 错误分支（details 对齐 wire schema：issues 数组）。 */
+function badRequest(message: string): PeriscopeRpcError {
+  return { code: 'bad-request', message, details: { issues: [] } };
+}
+
+/** settings-rejected 错误分支（details 对齐 wire schema：ns 字符串）。 */
+function settingsRejected(ns: string, message: string): PeriscopeRpcError {
+  return { code: 'settings-rejected', message, details: { ns } };
 }
 
 /** describe 端点返回：periscope 命名空间的当前存储面（读当前存储值，卡片渲染用）。 */
@@ -85,6 +103,8 @@ function parseUpdatePayload(payload: unknown): ParsedUpdate {
 
 /**
  * 构造 /periscope channel 的 RPC handler（endpoint 分发：describe 读 / update 写）。
+ * @param port - settings 服务的最小访问面（壳层注入；服务直调，绕开网关白名单）。
+ * @param ns - periscope settings 命名空间名，写进 settings-rejected 错误的 details.ns（wire schema 要求）。
  * 与 dsh 的 ConnectionRpcHandler 形状结构兼容（endpoint + payload + signal → RpcResult）；
  * signal 对齐 dsh 传入的浏览器取消信号（本 handler 不消费，仅声明；可选类型保持与既有调用
  * 兼容，且结构上仍可赋给 dsh 三参必填的 ConnectionRpcHandler）。所有失败都折叠进错误分支，
@@ -92,6 +112,7 @@ function parseUpdatePayload(payload: unknown): ParsedUpdate {
  */
 export function makePeriscopeRpcHandler(
   port: PeriscopeSettingsPort,
+  ns: string,
 ): (endpoint: string, payload: unknown, signal?: AbortSignal) => Promise<PeriscopeRpcResult<unknown>> {
   return async (endpoint, payload, _signal) => {
     switch (endpoint) {
@@ -102,25 +123,25 @@ export function makePeriscopeRpcHandler(
         } catch (caught) {
           return {
             ok: false,
-            error: rpcError('settings-rejected', caught instanceof Error ? caught.message : String(caught)),
+            error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
           };
         }
       }
       case 'update': {
         const parsed = parseUpdatePayload(payload);
-        if (!parsed.ok) return { ok: false, error: rpcError('bad-request', parsed.message) };
+        if (!parsed.ok) return { ok: false, error: badRequest(parsed.message) };
         try {
           await port.update(parsed.value.patch, parsed.value.expectedRevision);
           return { ok: true, value: null };
         } catch (caught) {
           return {
             ok: false,
-            error: rpcError('settings-rejected', caught instanceof Error ? caught.message : String(caught)),
+            error: settingsRejected(ns, caught instanceof Error ? caught.message : String(caught)),
           };
         }
       }
       default:
-        return { ok: false, error: rpcError('bad-request', `unknown /periscope endpoint "${endpoint}"`) };
+        return { ok: false, error: badRequest(`unknown /periscope endpoint "${endpoint}"`) };
     }
   };
 }
