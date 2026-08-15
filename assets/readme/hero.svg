@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="400" viewBox="0 0 1200 400"
+     role="img" aria-labelledby="title desc">
+  <title id="title">periscope —— 给纯文本 coding agent 的视觉桥</title>
+  <desc id="desc">periscope 把图片译成文字描述，让只读文字的 coding agent 也能看图。右侧演示转换：报错截图缩略图经过 describe 输出为 [Image 1] 名称与文字描述。</desc>
+
+  <rect width="1200" height="400" rx="24" fill="#0d1117"/>
+  <rect x="1" y="1" width="1198" height="398" rx="23" fill="none" stroke="#30363d"/>
+
+  <!-- 左侧标题区 -->
+  <text x="64" y="120" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" letter-spacing="3" fill="#2e6cc4">VISUAL BRIDGE FOR CODING AGENTS</text>
+  <text x="60" y="215" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="88" font-weight="800" letter-spacing="1" fill="#e6edf3">periscope</text>
+  <text x="64" y="272" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="26" fill="#e6edf3">给纯文本 coding agent 的视觉桥：</text>
+  <text x="64" y="308" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="26" fill="#8b949e">把图片译成文字描述。</text>
+  <text x="64" y="372" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" fill="#8b949e">Agent Plugins 1.0.0 · BYOM 三协议 · Node ≥ 22 · 零构建零依赖</text>
+
+  <!-- 右侧演示面板 -->
+  <g>
+    <rect x="700" y="88" width="436" height="224" rx="16" fill="#161b22" stroke="#30363d"/>
+
+    <!-- 图片缩略图（报错截图示意） -->
+    <g>
+      <rect x="716" y="108" width="160" height="124" rx="10" fill="#0d1117" stroke="#30363d"/>
+      <text x="730" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#3fb950">[IMAGE]</text>
+      <rect x="730" y="146" width="120" height="10" rx="2" fill="#3d444d"/>
+      <rect x="730" y="164" width="96" height="10" rx="2" fill="#3d444d"/>
+      <rect x="730" y="182" width="132" height="10" rx="2" fill="#f85149"/>
+      <rect x="730" y="200" width="108" height="10" rx="2" fill="#3d444d"/>
+    </g>
+
+    <!-- 转换箭头 -->
+    <g>
+      <path d="M 882 170 L 908 170" stroke="#8b949e" stroke-width="3" fill="none"/>
+      <path d="M 900 162 L 912 170 L 900 178" fill="#8b949e"/>
+    </g>
+
+    <!-- describe 输出块 -->
+    <g>
+      <rect x="916" y="108" width="200" height="124" rx="10" fill="#0d1117" stroke="#30363d"/>
+      <text x="932" y="134" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#3fb950">[Image 1]</text>
+      <text x="1018" y="134" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#e6edf3">a.png</text>
+      <text x="932" y="160" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#e6edf3">error TS2322:</text>
+      <text x="932" y="179" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#e6edf3">Type 'string' is not</text>
+      <text x="932" y="198" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#8b949e">assignable to type</text>
+      <text x="932" y="217" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#8b949e">'number'</text>
+    </g>
+
+    <text x="918" y="296" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#8b949e" text-anchor="middle">图片 ─▶ 文字描述</text>
+  </g>
+</svg>
