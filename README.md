@@ -1,6 +1,13 @@
 # 🔭 periscope
 
-**`双宿主 Claude Code · dsh`**  **`BYOM 不绑定服务商`**  **`零运行时依赖`**  **`零构建`**  **`三协议`**  **`任务模板 ocr / table / chart`**  **`Agent Plugins 1.0.0`**  **`Node ≥ 20`**
+**`双宿主 Claude Code · dsh`**  **`BYOM 不绑定服务商`**  **`零运行时依赖`**  **`零构建`**  **`三协议`**  **`任务模板 ocr / table / chart`**  **`Agent Plugins 1.0.0`**  **`Node ≥ 22`**
+
+<p align="center">
+  <img src="https://img.shields.io/github/stars/toRolex/periscope?style=flat-square&logo=github&color=2e6cc4" alt="GitHub stars" />
+  <img src="https://img.shields.io/github/license/toRolex/periscope?style=flat-square&color=red" alt="License: GPL-3.0" />
+  <img src="https://img.shields.io/badge/Node-%E2%89%A522-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node ≥ 22" />
+  <img src="https://img.shields.io/badge/Agent%20Plugins-1.0.0-blueviolet?style=flat-square" alt="Agent Plugins 1.0.0" />
+</p>
 
 > **给纯文本 coding agent 的视觉桥** —— 把图片译成文字描述，喂给只吃文本的 agent。
 > 截图、报错堆栈、表格、架构图，它从此「看」得懂。
@@ -28,13 +35,30 @@ periscope 以 **BYOM（bring your own model）** 定位：**不绑定任何服�
 
 ---
 
+## 📑 目录
+
+- ✨ [特性亮点](#-特性亮点)
+- 👀 [实际效果](#-实际效果)
+- 🚀 [快速上手](#-快速上手)
+- 📦 [安装（双宿主）](#-安装双宿主)
+- ⚙️ [配置](#-配置)
+- 🛠️ [用法](#-用法)
+- 🌊 [dsh 插件详解](#-dsh-插件详解)
+- 📜 [Agent Plugins 1.0.0 合规](#-agent-plugins-100-合规)
+- 🧑‍💻 [开发](#-开发)
+- ❓ [常见问题（FAQ）](#-常见问题faq)
+- ⭐ [支持与反馈](#-支持与反馈)
+- 📄 [License](#-license)
+
+---
+
 ## ✨ 特性亮点
 
 - 🖼️ **贴图即看懂**：Claude Code 里贴图自动注入 `[Image N] 名称: 描述`，agent 无感读图。
 - 🔌 **双宿主并存**：Claude Code（hook + skill + 独立脚本）与 dsh（LlmAdapter 桥）提供同一 describe 能力，两宿主并存演进。
 - 🧭 **BYOM 三协议**：openai / anthropic / responses，端点由你自带，不绑定任何服务商。
 - 🛡️ **绝不中断会话**：视觉端点故障降级 `[Image N] 描述不可用` 占位符，hook 始终放行、dsh 桥绝不抛错。
-- ⚡ **零构建零依赖**：`dist/` 随仓库提交，Node ≥ 20 直接跑，不装 typescript、不跑 build。
+- ⚡ **零构建零依赖**：`dist/` 随仓库提交，Node ≥ 22 直接跑，不装 typescript、不跑 build。
 - 🗂️ **任务模板**：内置 `ocr` / `table` / `chart`，`--intent` 一键切换描述侧重，也可透传自由文本。
 - 💾 **本地缓存**：未变图片命中缓存不重复请求视觉端点，省钱省时。
 - 📜 **Agent Plugins 1.0.0 合规**：被 VS Code / ChatGPT-Codex / GitHub Copilot / Cursor / Kiro 等 harness 识别加载。
@@ -52,7 +76,7 @@ claude plugin marketplace add toRolex/periscope
 claude plugin install periscope
 ```
 
-**② 配好** —— 在独立终端跑交互式配置脚本（wizard），接入你的视觉端点：
+**② 配好（安装后配置）** —— 在独立终端跑交互式配置脚本（wizard），接入你的视觉端点：
 
 ```bash
 node dist/cli/init.js
@@ -65,6 +89,54 @@ node dist/cli/init.js
 ```bash
 node dist/cli/describe.js ./截图.png --intent ocr
 ```
+
+---
+
+## 👀 实际效果
+
+接入你的视觉端点后，`describe` 输出就是下面这样。以下用仓库内置 mock 视觉端点（`src/testing/mock-server.ts`，离线、无需任何 API key）实测抓取，接入真实端点后形态一致。
+
+**报错截图 → 文字（`--intent ocr`）**
+
+```bash
+$ node dist/cli/describe.js ./报错.png --intent ocr
+error TS2322: Type 'string' is not assignable to type 'number'
+  at src/example.ts:42:5
+  42  const count: number = 'five';
+```
+
+**表格截图 → Markdown 表格（`--intent table`）**
+
+```bash
+$ node dist/cli/describe.js ./表格.png --intent table
+| 功能 | 状态 |
+| ---- | ---- |
+| 双宿主 | ✅ Claude Code + dsh |
+| BYOM | ✅ 不绑定服务商 |
+| 零构建 | ✅ dist/ 随仓提交 |
+```
+
+**多图并行** —— 逐行 `${source}: ${描述}`，总耗时约等于最慢单图：
+
+```text
+./报错.png: error TS2322: Type 'string' is not assignable to type 'number' ...
+./表格.png: | 功能 | 状态 | ...
+```
+
+**Claude Code 贴图** —— hook 自动把描述注入 `additionalContext`，agent 无感读图：
+
+```json
+"[Image 1] 报错.png: error TS2322: Type 'string' is not assignable to type 'number' ..."
+```
+
+### 人工实测指南
+
+想用**真实视觉模型**走一遍完整链路（BYOM，任意 OpenAI 兼容端点）：
+
+1. `node dist/cli/init.js` 填好端点，或 `node dist/cli/doctor.js` 先本地自检。
+2. 单图冒烟：`node dist/cli/describe.js 你的图.png --intent ocr`，确认描述正确、退出码 `0`。
+3. Claude Code 侧：装成插件后直接贴一张截图，看 agent 是否读出 `[Image N] 描述`；端点故障时降级为「描述不可用」，会话不被阻塞。
+4. dsh 侧：Web UI 模型选择器选 `periscope-deepseek` 路由，验证单图 / 多图 / 图文混合 / 端点故障降级 / 缓存命中。
 
 ---
 
@@ -107,7 +179,7 @@ claude plugin install periscope
 └── src/                            # TypeScript 源码
 ```
 
-**作为独立脚本使用**（不装插件也能用，前置要求 Node.js ≥ 20）：
+**作为独立脚本使用**（不装插件也能用，前置要求 Node.js ≥ 22）：
 
 ```bash
 git clone https://github.com/toRolex/periscope.git
@@ -256,7 +328,7 @@ node dist/cli/init.js
 node dist/cli/doctor.js [--offline]
 ```
 
-六项纯本地自检，逐项输出 `✅ / ⚠️ / ❌`（`❌` 项数即退出码）：config 文件存在性、三协议段 `baseUrl`+`model`、激活协议段非空、Node 版本（≥ 20）、`dist/` 编译产物在位、根 `plugin.json` 按 Agent Plugins 1.0.0 schema 校验。`--offline` 时连 schema 网络拉取也禁用（缓存缺失降级 `⚠️`，绝不发请求）。
+六项纯本地自检，逐项输出 `✅ / ⚠️ / ❌`（`❌` 项数即退出码）：config 文件存在性、三协议段 `baseUrl`+`model`、激活协议段非空、Node 版本（≥ 22）、`dist/` 编译产物在位、根 `plugin.json` 按 Agent Plugins 1.0.0 schema 校验。`--offline` 离线模式下连 schema 网络拉取也禁用（缓存缺失降级 `⚠️`，绝不发请求）。
 
 ### 贴图 hook（Claude Code 插件）
 
@@ -332,9 +404,9 @@ periscope 遵守 [Agent Plugins 1.0.0](https://agent-plugins.org) 标准（verce
 ## 🧑‍💻 开发
 
 - 依赖极简：devDependencies 仅 `typescript`（`@types/node` 不引入，手写 ambient 声明在 `src/global.d.ts`）。
-- 构建：`pnpm build`（= `tsc`）；测试：`pnpm test`（= `tsc && node --test`），含 CLI、core、三协议、config、缓存、hook、插件契约与 mock 端点端到端冒烟。
+- 构建：`pnpm build`（= `tsc`）；测试：`pnpm test`（= `tsc && node --test 'dist/**/*.test.js'`），含 CLI、core、三协议、config、缓存、hook、插件契约与 mock 端点端到端冒烟。
 - 本地 mock 视觉端点：`src/testing/mock-server.ts`（离线 HTTP server）+ `src/testing/fixtures.ts`（1x1 PNG 与临时配置/目录工具），供自动化冒烟替代真实端点。
-- dsh 侧（`dsh-plugin/`）与主仓同构：`npm run build` / `npm test`（`tsc && node --test`），零运行时依赖。
+- dsh 侧（`dsh-plugin/`）与主仓同构：`npm run build` / `npm test`（`tsc && node --test 'dist/**/*.test.js'`），零运行时依赖。
 - 双宿主 describe 引擎**各自保留副本、函数签名刻意一致**，接口稳定后抽独立 npm 包（届时是纯移动非重构）。
 
 ---
@@ -357,10 +429,22 @@ Claude Code 侧 describe 报「协议 X 未配置 baseUrl/model，请运行 init
 纯使用不需要，`dist/` 已随仓库提交。`pnpm install` / `pnpm build` 只在改源码或跑测试时需要。
 
 **Q：Node 版本要求？**
-Node.js ≥ 20（代码与测试使用内建 `fetch` 与 `node:test`）。
+Node.js ≥ 22（代码与测试使用内建 `fetch` 与 `node:test`）。
+
+---
+
+## ⭐ 支持与反馈
+
+觉得有用就点个 **Star** —— 这是开源项目最好的燃料，也让更多「只会读文字、看不了图」的 coding agent 找到这座桥。
+
+- 🐛 报 bug / 提需求：GitHub [Issues](https://github.com/toRolex/periscope/issues)
+- 🧑‍💻 参与贡献：欢迎 PR（先跑 `pnpm test` 保绿）
+- 💬 交流反馈：GitHub Issues / Discussions 均可
 
 ---
 
 ## 📄 License
 
-待定（发布前补充 LICENSE 文件）。
+本项目采用 **GPL-3.0**（GNU General Public License v3.0），全文见 [LICENSE](./LICENSE)。
+
+> GPL-3.0 是强 copyleft 协议：你可以自由使用、修改、再分发本插件，但任何基于它的衍生作品必须以同样的 GPL-3.0 协议开源。
