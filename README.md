@@ -1,6 +1,6 @@
 # 🔭 periscope
 
-**`双宿主 Claude Code · dsh`**  **`BYOM 不绑定服务商`**  **`零运行时依赖`**  **`零构建`**  **`三协议`**  **`任务模板 ocr / table / chart`**  **`Agent Plugins 1.0.0`**  **`Node ≥ 22`**
+**`双宿主 Claude Code · dsh`**  **`BYOM 不绑定服务商`**  **`零构建`**  **`零运行时依赖`**
 
 <p align="center">
   <img src="https://img.shields.io/github/stars/toRolex/periscope?style=flat-square&logo=github&color=2e6cc4" alt="GitHub stars" />
@@ -9,8 +9,8 @@
   <img src="https://img.shields.io/badge/Agent%20Plugins-1.0.0-blueviolet?style=flat-square" alt="Agent Plugins 1.0.0" />
 </p>
 
-> **给纯文本 coding agent 的视觉桥** —— 把图片译成文字描述，喂给只吃文本的 agent。
-> 截图、报错堆栈、表格、架构图，它从此「看」得懂。
+> **给纯文本 coding agent 的视觉桥**：把图片译成文字描述。
+> 截图、报错堆栈、表格、架构图，只读文字的 agent 也能「看」懂。
 
 ```
 你贴图 / 给路径 / 给 URL
@@ -31,7 +31,7 @@
 纯文本 coding agent —— 只读文字，也「看」懂了图
 ```
 
-periscope 以 **BYOM（bring your own model）** 定位：**不绑定任何服务商**——视觉模型完全由你自带，本地 Ollama / LM Studio、自建网关、任意 OpenAI 兼容云端端点皆可接入。**零构建**（`dist/` 随仓库提交，拿到即用）、**零运行时依赖**、**双宿主**并存：既是 Claude Code 插件，也是 dsh（deepseek-harness）原生插件。
+periscope 走 **BYOM（bring your own model）** 路线：视觉模型由你自带，本地 Ollama / LM Studio、自建网关、任意 OpenAI 兼容云端端点均可接入，不绑定任何服务商。零构建（`dist/` 随仓库提交）、零运行时依赖，双宿主并存：既是 Claude Code 插件，也是 dsh（deepseek-harness）原生插件。
 
 ---
 
@@ -55,13 +55,13 @@ periscope 以 **BYOM（bring your own model）** 定位：**不绑定任何服�
 ## ✨ 特性亮点
 
 - 🖼️ **贴图即看懂**：Claude Code 里贴图自动注入 `[Image N] 名称: 描述`，agent 无感读图。
-- 🔌 **双宿主并存**：Claude Code（hook + skill + 独立脚本）与 dsh（LlmAdapter 桥）提供同一 describe 能力，两宿主并存演进。
-- 🧭 **BYOM 三协议**：openai / anthropic / responses，端点由你自带，不绑定任何服务商。
+- 🔌 **双宿主并存**：Claude Code（hook + skill + 独立脚本）与 dsh（LlmAdapter 桥）提供同一 describe 能力。
+- 🧭 **BYOM 三协议**：openai / anthropic / responses，协议按需切换，不绑定服务商。
 - 🛡️ **绝不中断会话**：视觉端点故障降级 `[Image N] 描述不可用` 占位符，hook 始终放行、dsh 桥绝不抛错。
 - ⚡ **零构建零依赖**：`dist/` 随仓库提交，Node ≥ 22 直接跑，不装 typescript、不跑 build。
 - 🗂️ **任务模板**：内置 `ocr` / `table` / `chart`，`--intent` 一键切换描述侧重，也可透传自由文本。
 - 💾 **本地缓存**：未变图片命中缓存不重复请求视觉端点，省钱省时。
-- 📜 **Agent Plugins 1.0.0 合规**：被 VS Code / ChatGPT-Codex / GitHub Copilot / Cursor / Kiro 等 harness 识别加载。
+- 📜 **Agent Plugins 1.0.0 合规**：VS Code / Codex / Cursor 等兼容 harness 可直接加载。
 
 ---
 
@@ -212,7 +212,7 @@ dsh 检测到本包 `package.json` 声明的 `dsh.bundle.patch`，把包名追�
 
 ### Claude Code 侧 · `config.json`
 
-配置文件路径 **`~/.config/periscope/config.json`**（可用 `PERISCOPE_CONFIG` 覆盖）。首次运行任意命令时**懒创建空白模板**（三协议 `baseUrl` / `model` 为空串，**不绑定任何服务商**），需用 `node dist/cli/init.js` 或手改填入你自己的视觉端点。
+配置文件路径 **`~/.config/periscope/config.json`**（可用 `PERISCOPE_CONFIG` 覆盖）。首次运行任意命令时**懒创建空白模板**（三协议 `baseUrl` / `model` 均为空串），需用 `node dist/cli/init.js` 或手改填入你自己的视觉端点。
 
 填入端点后示例（openai 协议、DashScope 兼容模式）：
 
@@ -435,7 +435,7 @@ Node.js ≥ 22（代码与测试使用内建 `fetch` 与 `node:test`）。
 
 ## ⭐ 支持与反馈
 
-觉得有用就点个 **Star** —— 这是开源项目最好的燃料，也让更多「只会读文字、看不了图」的 coding agent 找到这座桥。
+觉得有用就点个 **Star**，让更多只读文字的 coding agent 找到这座桥。
 
 - 🐛 报 bug / 提需求：GitHub [Issues](https://github.com/toRolex/periscope/issues)
 - 🧑‍💻 参与贡献：欢迎 PR（先跑 `pnpm test` 保绿）
