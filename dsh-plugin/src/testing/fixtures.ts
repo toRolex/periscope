@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
+import { DEFAULT_CONFIG, PeriscopeConfig } from '../config/config.js';
 
 /**
  * 测试件（从主仓 src/testing/fixtures.ts 拷贝并精简到本包用到的 helper，

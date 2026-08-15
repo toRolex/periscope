@@ -1,7 +1,7 @@
-import { endpointMissingError, loadConfig, PeriscopeConfig } from '../config/config';
-import { getProtocol } from '../protocols';
-import { defaultTransport, HttpTransport } from '../transport';
-import { resolveIntent } from './templates';
+import { endpointMissingError, loadConfig, PeriscopeConfig } from '../config/config.js';
+import { getProtocol } from '../protocols/index.js';
+import { defaultTransport, HttpTransport } from '../transport.js';
+import { resolveIntent } from './templates.js';
 
 /**
  * dsh 版 describe 引擎 —— 主仓（Claude Code 版）src/core/describe.ts 的刻意副本（ADR 0003 决策 6）。

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { openaiAdapter } from './openai';
-import { TASK_TEMPLATES } from '../core/templates';
+import { openaiAdapter } from './openai.js';
+import { TASK_TEMPLATES } from '../core/templates.js';
 
 test('buildRequest 构造 openai chat/completions 请求', () => {
   const req = openaiAdapter.buildRequest({

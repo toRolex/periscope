@@ -202,5 +202,5 @@ declare module '@deepseek-ai/schemastery' {
   }
 
   const Schema: SchemaStatic;
-  export = Schema;
+  export default Schema;
 }

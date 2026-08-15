@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { configPathForEnv, DEFAULT_CONFIG, defaultConfigPath, loadConfig } from './config';
-import { Protocol } from '../protocols/types';
-import { makeTempDir, withEnv } from '../testing/fixtures';
+import { configPathForEnv, DEFAULT_CONFIG, defaultConfigPath, loadConfig } from './config.js';
+import { Protocol } from '../protocols/types.js';
+import { makeTempDir, withEnv } from '../testing/fixtures.js';
 
 test('首次运行懒创建：PERISCOPE_CONFIG 指向的路径自动生成空白模板配置', () => {
   const dir = makeTempDir();

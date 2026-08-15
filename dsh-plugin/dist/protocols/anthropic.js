@@ -1,12 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.anthropicAdapter = exports.ANTHROPIC_VERSION = void 0;
-exports.dataUrlToImageSource = dataUrlToImageSource;
-const types_1 = require("./types");
-const parse_1 = require("./parse");
-exports.ANTHROPIC_VERSION = '2023-06-01';
+import { DEFAULT_IMAGE_PROMPT } from './types.js';
+import { tryParseJson } from './parse.js';
+export const ANTHROPIC_VERSION = '2023-06-01';
 /** 解析 data URL（data:image/<mime>;base64,<data>）为 anthropic image source 需要的 media_type 与 base64 data。 */
-function dataUrlToImageSource(dataUrl) {
+export function dataUrlToImageSource(dataUrl) {
     const comma = dataUrl.indexOf(',');
     const meta = comma === -1 ? '' : dataUrl.slice(0, comma);
     const data = comma === -1 ? dataUrl : dataUrl.slice(comma + 1);
@@ -36,12 +32,12 @@ function toImageSource(imageDataUrl) {
  *
  * 本文件与主仓 src/protocols/anthropic.ts 逐字一致（纯拷贝，ADR 0003 决策 6）。
  */
-exports.anthropicAdapter = {
+export const anthropicAdapter = {
     name: 'anthropic',
     buildRequest(input) {
         const headers = {
             'content-type': 'application/json',
-            'anthropic-version': exports.ANTHROPIC_VERSION,
+            'anthropic-version': ANTHROPIC_VERSION,
         };
         if (input.apiKey) {
             headers['x-api-key'] = input.apiKey;
@@ -57,7 +53,7 @@ exports.anthropicAdapter = {
                     {
                         role: 'user',
                         content: [
-                            { type: 'text', text: input.intent ?? types_1.DEFAULT_IMAGE_PROMPT },
+                            { type: 'text', text: input.intent ?? DEFAULT_IMAGE_PROMPT },
                             { type: 'image', source },
                         ],
                     },
@@ -66,7 +62,7 @@ exports.anthropicAdapter = {
         };
     },
     extractText(responseText) {
-        const parsed = (0, parse_1.tryParseJson)(responseText);
+        const parsed = tryParseJson(responseText);
         if (parsed === null)
             return responseText; // 非 JSON → 透传原始文本
         const content = parsed?.content;

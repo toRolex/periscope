@@ -1,5 +1,5 @@
-import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
-import { tryParseJson } from './parse';
+import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types.js';
+import { tryParseJson } from './parse.js';
 
 /**
  * openai 协议（chat/completions）。与 anthropic / responses 并列的三协议实现之一。

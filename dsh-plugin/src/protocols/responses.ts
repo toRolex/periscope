@@ -1,5 +1,5 @@
-import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
-import { tryParseJson } from './parse';
+import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types.js';
+import { tryParseJson } from './parse.js';
 
 /**
  * openai responses 协议（v1/responses）。本期新增实现。

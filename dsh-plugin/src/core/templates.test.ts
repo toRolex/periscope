@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { TASK_TEMPLATES, resolveIntent } from './templates';
+import { TASK_TEMPLATES, resolveIntent } from './templates.js';
 
 test('任务模板内置 ocr / table / chart 三份命名 prompt 文案', () => {
   assert.deepEqual(Object.keys(TASK_TEMPLATES).sort(), ['chart', 'ocr', 'table']);

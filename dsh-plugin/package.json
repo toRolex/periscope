@@ -4,7 +4,7 @@
   "description": "periscope 的 dsh（deepseek-harness）原生插件包 —— periscope-deepseek route 桥（声明 image 能力、纯文本委托 deepseek）+ describe 引擎副本；与主仓同构的零依赖 tsc && node --test",
   "private": true,
   "license": "GPL-3.0-only",
-  "type": "commonjs",
+  "type": "module",
   "main": "./dist/bridge/plugin.js",
   "bin": {
     "periscope-dsh-snippet": "./dist/snippet/cli.js"

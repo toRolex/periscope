@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { ImageDescribedRecord } from '../core/translate';
-import { ResolvedVisionConfig } from './vision-config';
+import { ImageDescribedRecord } from '../core/translate.js';
+import { ResolvedVisionConfig } from './vision-config.js';
 import {
   DESCRIBE_TIMEOUT_MS,
   ENDPOINT_NOT_CONFIGURED_GUIDANCE,
@@ -11,7 +11,7 @@ import {
   toPeriscopeConfig,
   translateMessages,
   visionEndpointReady,
-} from './stream-core';
+} from './stream-core.js';
 
 /**
  * stream() 接线的纯逻辑测试（issue #29）：视觉配置 → describeImage、消息历史翻译、

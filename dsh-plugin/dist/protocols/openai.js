@@ -1,15 +1,12 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.openaiAdapter = void 0;
-const types_1 = require("./types");
-const parse_1 = require("./parse");
+import { DEFAULT_IMAGE_PROMPT } from './types.js';
+import { tryParseJson } from './parse.js';
 /**
  * openai 协议（chat/completions）。与 anthropic / responses 并列的三协议实现之一。
  * 响应提取遵循「容错透传」：非 JSON / 缺 content 时返回原始响应文本。
  *
  * 本文件与主仓 src/protocols/openai.ts 逐字一致（纯拷贝，ADR 0003 决策 6）。
  */
-exports.openaiAdapter = {
+export const openaiAdapter = {
     name: 'openai',
     buildRequest(input) {
         const headers = { 'content-type': 'application/json' };
@@ -25,7 +22,7 @@ exports.openaiAdapter = {
                     {
                         role: 'user',
                         content: [
-                            { type: 'text', text: input.intent ?? types_1.DEFAULT_IMAGE_PROMPT },
+                            { type: 'text', text: input.intent ?? DEFAULT_IMAGE_PROMPT },
                             { type: 'image_url', image_url: { url: input.imageDataUrl } },
                         ],
                     },
@@ -34,7 +31,7 @@ exports.openaiAdapter = {
         };
     },
     extractText(responseText) {
-        const data = (0, parse_1.tryParseJson)(responseText);
+        const data = tryParseJson(responseText);
         if (data === null)
             return responseText; // 非 JSON → 透传原始文本
         const content = data?.choices?.[0]?.message?.content;

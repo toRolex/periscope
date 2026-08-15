@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.responsesAdapter = void 0;
-const types_1 = require("./types");
-const parse_1 = require("./parse");
+import { DEFAULT_IMAGE_PROMPT } from './types.js';
+import { tryParseJson } from './parse.js';
 /**
  * openai responses 协议（v1/responses）。本期新增实现。
  * 图片走 input[].content[] 的 input_image 块（image_url 直接携带 data URL）。
@@ -10,7 +7,7 @@ const parse_1 = require("./parse");
  *
  * 本文件与主仓 src/protocols/responses.ts 逐字一致（纯拷贝，ADR 0003 决策 6）。
  */
-exports.responsesAdapter = {
+export const responsesAdapter = {
     name: 'responses',
     buildRequest(input) {
         const headers = { 'content-type': 'application/json' };
@@ -26,7 +23,7 @@ exports.responsesAdapter = {
                     {
                         role: 'user',
                         content: [
-                            { type: 'input_text', text: input.intent ?? types_1.DEFAULT_IMAGE_PROMPT },
+                            { type: 'input_text', text: input.intent ?? DEFAULT_IMAGE_PROMPT },
                             { type: 'input_image', image_url: input.imageDataUrl },
                         ],
                     },
@@ -35,7 +32,7 @@ exports.responsesAdapter = {
         };
     },
     extractText(responseText) {
-        const parsed = (0, parse_1.tryParseJson)(responseText);
+        const parsed = tryParseJson(responseText);
         if (parsed === null)
             return responseText; // 非 JSON → 透传原始文本
         const output = parsed?.output;

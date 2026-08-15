@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { anthropicAdapter } from './anthropic';
-import { TASK_TEMPLATES } from '../core/templates';
+import { anthropicAdapter } from './anthropic.js';
+import { TASK_TEMPLATES } from '../core/templates.js';
 
 test('buildRequest 构造 anthropic v1/messages 请求', () => {
   const req = anthropicAdapter.buildRequest({

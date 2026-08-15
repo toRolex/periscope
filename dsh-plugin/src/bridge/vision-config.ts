@@ -1,4 +1,4 @@
-import { Protocol } from '../protocols/types';
+import { Protocol } from '../protocols/types.js';
 
 /**
  * dsh 侧视觉端点配置解析（cordis.yml + schemastery + env fallback）的纯逻辑部分。

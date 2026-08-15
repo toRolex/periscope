@@ -1,5 +1,5 @@
-import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types';
-import { tryParseJson } from './parse';
+import { BuildRequestInput, BuiltRequest, DEFAULT_IMAGE_PROMPT, ProtocolAdapter } from './types.js';
+import { tryParseJson } from './parse.js';
 
 export const ANTHROPIC_VERSION = '2023-06-01';
 

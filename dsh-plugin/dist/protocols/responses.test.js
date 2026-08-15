@@ -1,44 +1,9 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-const node_test_1 = require("node:test");
-const assert = __importStar(require("node:assert"));
-const responses_1 = require("./responses");
-const templates_1 = require("../core/templates");
-(0, node_test_1.test)('buildRequest 构造 responses v1/responses 请求', () => {
-    const req = responses_1.responsesAdapter.buildRequest({
+import { test } from 'node:test';
+import * as assert from 'node:assert';
+import { responsesAdapter } from './responses.js';
+import { TASK_TEMPLATES } from '../core/templates.js';
+test('buildRequest 构造 responses v1/responses 请求', () => {
+    const req = responsesAdapter.buildRequest({
         baseUrl: 'https://api.openai.com/v1',
         model: 'gpt-4o-mini',
         imageDataUrl: 'data:image/png;base64,AAAA',
@@ -58,8 +23,8 @@ const templates_1 = require("../core/templates");
     assert.equal(body.input[0].content[1].type, 'input_image');
     assert.equal(body.input[0].content[1].image_url, 'data:image/png;base64,AAAA');
 });
-(0, node_test_1.test)('buildRequest 未提供 intent 时使用默认提示词', () => {
-    const req = responses_1.responsesAdapter.buildRequest({
+test('buildRequest 未提供 intent 时使用默认提示词', () => {
+    const req = responsesAdapter.buildRequest({
         baseUrl: 'https://api.openai.com/v1',
         model: 'gpt-4o-mini',
         imageDataUrl: 'data:image/png;base64,AAAA',
@@ -67,15 +32,15 @@ const templates_1 = require("../core/templates");
     const body = req.body;
     assert.equal(body.input[0].content[0].text, '描述这张图片');
 });
-(0, node_test_1.test)('buildRequest 未提供 apiKey 时不设置 Authorization 头', () => {
-    const req = responses_1.responsesAdapter.buildRequest({
+test('buildRequest 未提供 apiKey 时不设置 Authorization 头', () => {
+    const req = responsesAdapter.buildRequest({
         baseUrl: 'https://api.openai.com/v1',
         model: 'gpt-4o-mini',
         imageDataUrl: 'data:image/png;base64,AAAA',
     });
     assert.equal(req.headers['authorization'], undefined);
 });
-(0, node_test_1.test)('extractText 提取 output 中 message 的 output_text 拼接文本', () => {
+test('extractText 提取 output 中 message 的 output_text 拼接文本', () => {
     const raw = JSON.stringify({
         output: [
             {
@@ -88,9 +53,9 @@ const templates_1 = require("../core/templates");
             },
         ],
     });
-    assert.equal(responses_1.responsesAdapter.extractText(raw), '画面里有一只猫');
+    assert.equal(responsesAdapter.extractText(raw), '画面里有一只猫');
 });
-(0, node_test_1.test)('extractText 忽略非 message 的 output 项（如 reasoning）', () => {
+test('extractText 忽略非 message 的 output 项（如 reasoning）', () => {
     const raw = JSON.stringify({
         output: [
             { type: 'reasoning', summary: [{ type: 'summary_text', text: '思考中' }] },
@@ -101,18 +66,18 @@ const templates_1 = require("../core/templates");
             },
         ],
     });
-    assert.equal(responses_1.responsesAdapter.extractText(raw), '最终描述');
+    assert.equal(responsesAdapter.extractText(raw), '最终描述');
 });
-(0, node_test_1.test)('extractText 对非 JSON 响应透传原始文本', () => {
-    assert.equal(responses_1.responsesAdapter.extractText('not-json-at-all'), 'not-json-at-all');
+test('extractText 对非 JSON 响应透传原始文本', () => {
+    assert.equal(responsesAdapter.extractText('not-json-at-all'), 'not-json-at-all');
 });
-(0, node_test_1.test)('extractText 对缺少 output 的响应透传原始文本', () => {
+test('extractText 对缺少 output 的响应透传原始文本', () => {
     const raw = '{"error":{"message":"bad request"}}';
-    assert.equal(responses_1.responsesAdapter.extractText(raw), raw);
+    assert.equal(responsesAdapter.extractText(raw), raw);
 });
-(0, node_test_1.test)('buildRequest 把 ocr/table/chart 模板 prompt 放进 input_text 位置', () => {
-    for (const prompt of Object.values(templates_1.TASK_TEMPLATES)) {
-        const req = responses_1.responsesAdapter.buildRequest({
+test('buildRequest 把 ocr/table/chart 模板 prompt 放进 input_text 位置', () => {
+    for (const prompt of Object.values(TASK_TEMPLATES)) {
+        const req = responsesAdapter.buildRequest({
             baseUrl: 'https://api.openai.com/v1',
             model: 'gpt-4o-mini',
             imageDataUrl: 'data:image/png;base64,AAAA',

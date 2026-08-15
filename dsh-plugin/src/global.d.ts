@@ -19,10 +19,10 @@ declare const process: {
   execPath: string;
 };
 
-declare const __dirname: string;
-
-declare const require: ((id: string) => any) & { main?: { exports: unknown } };
-declare const module: { exports: unknown; main?: unknown };
+/** Node ESM 的 import.meta.main（Node ≥20.11），合并进 lib 的 ImportMeta。 */
+interface ImportMeta {
+  main: boolean;
+}
 
 declare const Buffer: {
   from(data: string, encoding?: 'base64' | 'utf8'): ByteBuf;
@@ -58,6 +58,10 @@ declare module 'node:os' {
 declare module 'node:path' {
   export function join(...parts: string[]): string;
   export function dirname(p: string): string;
+}
+
+declare module 'node:url' {
+  export function fileURLToPath(url: string): string;
 }
 
 declare module 'node:http' {

@@ -1,8 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEFAULT_PROTOCOL = exports.DEFAULT_API_KEY_ENV = exports.DEFAULT_MODEL_PLACEHOLDER = exports.DEFAULT_BASE_URL_PLACEHOLDER = exports.VALID_PROTOCOLS = void 0;
-exports.yamlQuote = yamlQuote;
-exports.generateSnippet = generateSnippet;
 /**
  * periscope-dsh 的 cordis.yml 配置片段生成器（issue #30）。
  *
@@ -15,15 +10,15 @@ exports.generateSnippet = generateSnippet;
  * 需要处双引号包裹，保证可被 cordis.yml 解析。
  */
 /** 合法协议联合（与 schemastery Config schema / vision-config 一致）。 */
-exports.VALID_PROTOCOLS = ['openai', 'anthropic', 'responses'];
+export const VALID_PROTOCOLS = ['openai', 'anthropic', 'responses'];
 /** baseUrl 占位符：无默认端点，用户替换为自己的视觉端点。 */
-exports.DEFAULT_BASE_URL_PLACEHOLDER = 'https://your-vision-endpoint.example.com/v1';
+export const DEFAULT_BASE_URL_PLACEHOLDER = 'https://your-vision-endpoint.example.com/v1';
 /** model 占位符：无默认模型，用户替换为自己的视觉模型名。 */
-exports.DEFAULT_MODEL_PLACEHOLDER = 'your-vision-model';
+export const DEFAULT_MODEL_PLACEHOLDER = 'your-vision-model';
 /** apiKey 的默认环境变量名（与 bridge/vision-config.ts 一致）。 */
-exports.DEFAULT_API_KEY_ENV = 'PERISCOPE_API_KEY';
+export const DEFAULT_API_KEY_ENV = 'PERISCOPE_API_KEY';
 /** protocol 缺省：openai 兼容协议（仅请求形状，不绑定任何服务商）。 */
-exports.DEFAULT_PROTOCOL = 'openai';
+export const DEFAULT_PROTOCOL = 'openai';
 const PROTOCOL_HINT = 'openai | anthropic | responses';
 /** 纯标量起始字符歧义（列表/映射/锚点/标签/注释等）→ 需双引号。 */
 const YAML_HEAD_NEEDS_QUOTE = /^[\s\-?:,\[\]{}#&*!|>'"%@`]/;
@@ -40,7 +35,7 @@ function quote(value) {
  * 把字符串安全渲染为 YAML 纯标量；必要处双引号包裹并转义。
  * 覆盖生成器的实际取值域（URL / 模型名 / 环境变量名 / 用户 CLI 注入值）。
  */
-function yamlQuote(value) {
+export function yamlQuote(value) {
     if (value === '')
         return '""';
     if (YAML_HEAD_NEEDS_QUOTE.test(value))
@@ -60,15 +55,15 @@ function yamlQuote(value) {
  * （apiKey 仅从环境变量读取的指引）。整段是合法 YAML：`config:` 为唯一顶层键。
  * 非法 protocol 直接抛错（fail-fast）。
  */
-function generateSnippet(options = {}) {
-    const protocol = options.protocol ?? exports.DEFAULT_PROTOCOL;
-    if (!exports.VALID_PROTOCOLS.includes(protocol)) {
+export function generateSnippet(options = {}) {
+    const protocol = options.protocol ?? DEFAULT_PROTOCOL;
+    if (!VALID_PROTOCOLS.includes(protocol)) {
         throw new Error(`非法 protocol: ${protocol}（应为 ${PROTOCOL_HINT}）`);
     }
-    const baseUrl = yamlQuote(options.baseUrl ?? exports.DEFAULT_BASE_URL_PLACEHOLDER);
-    const model = yamlQuote(options.model ?? exports.DEFAULT_MODEL_PLACEHOLDER);
-    const apiKeyEnv = yamlQuote(options.apiKeyEnv ?? exports.DEFAULT_API_KEY_ENV);
-    const apiKeyEnvName = options.apiKeyEnv ?? exports.DEFAULT_API_KEY_ENV;
+    const baseUrl = yamlQuote(options.baseUrl ?? DEFAULT_BASE_URL_PLACEHOLDER);
+    const model = yamlQuote(options.model ?? DEFAULT_MODEL_PLACEHOLDER);
+    const apiKeyEnv = yamlQuote(options.apiKeyEnv ?? DEFAULT_API_KEY_ENV);
+    const apiKeyEnvName = options.apiKeyEnv ?? DEFAULT_API_KEY_ENV;
     return [
         '# periscope-dsh 视觉端点配置片段（dsh 侧便利脚本生成，issue #30）',
         '# ------------------------------------------------------------',

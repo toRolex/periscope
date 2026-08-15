@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseSnippetArgs = parseSnippetArgs;
-exports.runSnippet = runSnippet;
-const snippet_1 = require("./snippet");
+import { DEFAULT_API_KEY_ENV, DEFAULT_BASE_URL_PLACEHOLDER, DEFAULT_MODEL_PLACEHOLDER, generateSnippet, VALID_PROTOCOLS, } from './snippet.js';
 const PROTOCOL_HINT = 'openai | anthropic | responses';
 const USAGE = [
     '用法: periscope-dsh-snippet [选项]',
@@ -13,14 +9,14 @@ const USAGE = [
     '',
     '选项:',
     `  --protocol <openai|anthropic|responses>  视觉端点协议（默认 openai）`,
-    `  --baseUrl <url>                          视觉端点 baseUrl（默认 ${snippet_1.DEFAULT_BASE_URL_PLACEHOLDER}）`,
-    `  --model <model>                          视觉端点模型名（默认 ${snippet_1.DEFAULT_MODEL_PLACEHOLDER}）`,
-    `  --apiKeyEnv <var>                        承载视觉 apiKey 的环境变量名（默认 ${snippet_1.DEFAULT_API_KEY_ENV}）`,
+    `  --baseUrl <url>                          视觉端点 baseUrl（默认 ${DEFAULT_BASE_URL_PLACEHOLDER}）`,
+    `  --model <model>                          视觉端点模型名（默认 ${DEFAULT_MODEL_PLACEHOLDER}）`,
+    `  --apiKeyEnv <var>                        承载视觉 apiKey 的环境变量名（默认 ${DEFAULT_API_KEY_ENV}）`,
     '  -h, --help                               显示本帮助',
     '',
 ].join('\n');
 /** 解析 CLI 参数：合法 → ok 选项；缺值 / 非法 protocol / 未知选项 → 错误文案。 */
-function parseSnippetArgs(argv) {
+export function parseSnippetArgs(argv) {
     const options = {};
     let i = 0;
     while (i < argv.length) {
@@ -31,7 +27,7 @@ function parseSnippetArgs(argv) {
                 if (value === undefined) {
                     return { ok: false, error: `缺少 --protocol 的值（应为 ${PROTOCOL_HINT}）` };
                 }
-                if (!snippet_1.VALID_PROTOCOLS.includes(value)) {
+                if (!VALID_PROTOCOLS.includes(value)) {
                     return { ok: false, error: `非法 protocol: ${value}（应为 ${PROTOCOL_HINT}）` };
                 }
                 options.protocol = value;
@@ -69,7 +65,7 @@ function hasHelpFlag(argv) {
  * 运行片段生成器：--help 输出用法退出 0；参数错误向 stderr 报错退出 1；
  * 成功把片段写到 stdout 退出 0。不触碰 stdin，无 TTY 依赖。
  */
-function runSnippet(argv, stdout, stderr) {
+export function runSnippet(argv, stdout, stderr) {
     if (hasHelpFlag(argv)) {
         stdout.write(USAGE);
         return 0;
@@ -80,7 +76,7 @@ function runSnippet(argv, stdout, stderr) {
         return 1;
     }
     try {
-        stdout.write((0, snippet_1.generateSnippet)(parsed.options));
+        stdout.write(generateSnippet(parsed.options));
     }
     catch (err) {
         stderr.write(`错误: ${err instanceof Error ? err.message : String(err)}\n`);
@@ -88,6 +84,6 @@ function runSnippet(argv, stdout, stderr) {
     }
     return 0;
 }
-if (require.main === module) {
+if (import.meta.main) {
     process.exitCode = runSnippet(process.argv.slice(2), process.stdout, process.stderr);
 }

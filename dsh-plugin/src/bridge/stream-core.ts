@@ -1,6 +1,6 @@
-import { PeriscopeConfig } from '../config/config';
-import { ImageDescribedRecord, TranslateDeps, translateContent } from '../core/translate';
-import { ResolvedVisionConfig } from './vision-config';
+import { PeriscopeConfig } from '../config/config.js';
+import { ImageDescribedRecord, TranslateDeps, translateContent } from '../core/translate.js';
+import { ResolvedVisionConfig } from './vision-config.js';
 
 /**
  * stream() 接线的纯逻辑核心（issue #29，ADR 0003 决策 1/5）：把「视觉配置 → describeImage」

@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { describe, describeMany } from './describe';
-import { TASK_TEMPLATES } from './templates';
-import { HttpTransport } from '../transport';
-import { createMockServer } from '../testing/mock-server';
+import { describe, describeMany } from './describe.js';
+import { TASK_TEMPLATES } from './templates.js';
+import { HttpTransport } from '../transport.js';
+import { createMockServer } from '../testing/mock-server.js';
 import {
   makeTempDir,
   PNG_1PX_BASE64,
   readyEndpoint,
   writeConfigFile,
-} from '../testing/fixtures';
+} from '../testing/fixtures.js';
 
 /**
  * describe 引擎（dsh 版）测试：输入为图片字节（Uint8Array），其余行为对齐主仓 describe.test.ts。

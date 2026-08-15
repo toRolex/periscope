@@ -9,7 +9,7 @@ import {
   listRouteModels,
   resolveRouteModel,
   toDelegateOptions,
-} from './route';
+} from './route.js';
 
 /**
  * periscope-deepseek route 的纯逻辑测试：能力声明形状（inputModalities 含 image，

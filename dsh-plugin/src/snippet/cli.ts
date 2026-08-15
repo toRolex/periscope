@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import type { Writable } from 'node:stream';
-import { Protocol } from '../protocols/types';
+import { Protocol } from '../protocols/types.js';
 import {
   DEFAULT_API_KEY_ENV,
   DEFAULT_BASE_URL_PLACEHOLDER,
@@ -8,7 +8,7 @@ import {
   generateSnippet,
   SnippetOptions,
   VALID_PROTOCOLS,
-} from './snippet';
+} from './snippet.js';
 
 /**
  * periscope-dsh 的 cordis.yml 片段生成 CLI（issue #30）。
@@ -109,6 +109,6 @@ export function runSnippet(argv: string[], stdout: Writable, stderr: Writable): 
   return 0;
 }
 
-if (require.main === module) {
+if (import.meta.main) {
   process.exitCode = runSnippet(process.argv.slice(2), process.stdout, process.stderr);
 }

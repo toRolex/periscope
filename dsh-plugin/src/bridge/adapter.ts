@@ -6,20 +6,20 @@ import type {
   LlmResolvedModelInfo,
   StreamChunk,
 } from '@deepseek-ai/dsh-llm';
-import { describe } from '../core/describe';
-import { ResolvedVisionConfig } from './vision-config';
+import { describe } from '../core/describe.js';
+import { ResolvedVisionConfig } from './vision-config.js';
 import {
   ImageDescribedSink,
   buildDescribeImage,
   emitImageDescribed,
   translateMessages,
-} from './stream-core';
+} from './stream-core.js';
 import {
   buildProviderInfo,
   listRouteModels,
   resolveRouteModel,
   toDelegateOptions,
-} from './route';
+} from './route.js';
 
 /**
  * 把一次模型调用委托给主文本模型的函数面（壳层由 ctx.llm.stream 注入，见 plugin.ts）。

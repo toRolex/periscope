@@ -1,13 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.describe = describe;
-exports.describeMany = describeMany;
-const config_1 = require("../config/config");
-const protocols_1 = require("../protocols");
-const transport_1 = require("../transport");
-const templates_1 = require("./templates");
+import { endpointMissingError, loadConfig } from '../config/config.js';
+import { getProtocol } from '../protocols/index.js';
+import { defaultTransport } from '../transport.js';
+import { resolveIntent } from './templates.js';
 function endpointFor(config) {
-    const error = (0, config_1.endpointMissingError)(config.protocol, config[config.protocol]);
+    const error = endpointMissingError(config.protocol, config[config.protocol]);
     if (error !== null)
         throw new Error(error);
     const endpoint = config[config.protocol];
@@ -28,14 +24,14 @@ function bytesToImageDataUrl(bytes, mimeType = 'image/png') {
  * → 传输发出 → 非 2xx 抛错、2xx 容错提取文本。
  * 本副本不含任何缓存：content-addressed 缓存归桥接核心票 #28。
  */
-async function describe(input, opts = {}) {
-    const config = opts.config ?? (0, config_1.loadConfig)({ configPath: opts.configPath });
-    const adapter = (0, protocols_1.getProtocol)(config.protocol);
-    const transport = opts.transport ?? transport_1.defaultTransport;
+export async function describe(input, opts = {}) {
+    const config = opts.config ?? loadConfig({ configPath: opts.configPath });
+    const adapter = getProtocol(config.protocol);
+    const transport = opts.transport ?? defaultTransport;
     // 先校验端点：空白模板（未配置 baseUrl/model）应尽早给出可操作报错，而不是等到构造请求之后。
     const { baseUrl, model } = endpointFor(config);
     // 任务模板解析：命中模板名（ocr/table/chart）替换为模板 prompt，自定义文本原样透传，缺省保持默认描述。
-    const intent = (0, templates_1.resolveIntent)(input.intent);
+    const intent = resolveIntent(input.intent);
     const imageDataUrl = bytesToImageDataUrl(input.bytes, input.mimeType);
     const request = adapter.buildRequest({
         baseUrl,
@@ -54,7 +50,7 @@ async function describe(input, opts = {}) {
  * 多图并行视觉描述：逐图容错聚合，按输入顺序返回结果。
  * 单图失败不丢弃其余成功结果——失败项 description 为 null 并附 error，调用方自行决定如何呈现。
  */
-async function describeMany(inputs, opts = {}) {
+export async function describeMany(inputs, opts = {}) {
     const settled = await Promise.allSettled(inputs.map((input) => describe(input, opts)));
     return settled.map((result, i) => ({
         source: inputs[i].source ?? `图片 ${i + 1}`,

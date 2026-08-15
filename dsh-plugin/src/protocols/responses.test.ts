@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { responsesAdapter } from './responses';
-import { TASK_TEMPLATES } from '../core/templates';
+import { responsesAdapter } from './responses.js';
+import { TASK_TEMPLATES } from '../core/templates.js';
 
 test('buildRequest 构造 responses v1/responses 请求', () => {
   const req = responsesAdapter.buildRequest({

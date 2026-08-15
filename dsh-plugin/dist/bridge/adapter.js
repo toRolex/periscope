@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PeriscopeBridgeAdapter = void 0;
-const dsh_llm_1 = require("@deepseek-ai/dsh-llm");
-const describe_1 = require("../core/describe");
-const stream_core_1 = require("./stream-core");
-const route_1 = require("./route");
+import { LlmAdapter } from '@deepseek-ai/dsh-llm';
+import { describe } from '../core/describe.js';
+import { buildDescribeImage, emitImageDescribed, translateMessages, } from './stream-core.js';
+import { buildProviderInfo, listRouteModels, resolveRouteModel, toDelegateOptions, } from './route.js';
 /**
  * periscope 的 dsh 桥接适配器：一个声明 image 输入能力的 LlmAdapter。
  *
@@ -16,7 +13,7 @@ const route_1 = require("./route");
  * 本类是 dsh 集成壳（extends 真实 LlmAdapter），只在 dsh 宿主运行时加载，不进离线单测；
  * 可测的纯逻辑都在 route.ts / vision-config.ts / stream-core.ts。
  */
-class PeriscopeBridgeAdapter extends dsh_llm_1.LlmAdapter {
+export class PeriscopeBridgeAdapter extends LlmAdapter {
     /** 解析好的视觉端点配置（cordis.yml + env fallback，apiKey 仅从 env）。 */
     vision;
     delegate;
@@ -33,19 +30,19 @@ class PeriscopeBridgeAdapter extends dsh_llm_1.LlmAdapter {
         this.readImage = options.readImage;
         this.sink = options.sink;
         this.cache = options.cache ?? new Map();
-        this.describeImage = (0, stream_core_1.buildDescribeImage)(options.vision, describe_1.describe);
+        this.describeImage = buildDescribeImage(options.vision, describe);
     }
     /** providerInfo：id 等于 route 键，name 供 Web UI 选择器分组展示。 */
     providerInfo(provider) {
-        return (0, route_1.buildProviderInfo)(provider);
+        return buildProviderInfo(provider);
     }
     /** listModels：广告模型目录（选择器数据来源），每个都带 image 能力声明。 */
     listModels(provider) {
-        return Promise.resolve((0, route_1.listRouteModels)(provider));
+        return Promise.resolve(listRouteModels(provider));
     }
     /** resolveModel：admission 的能力查询入口，对任意 model 都声明 image 能力。 */
     resolveModel(provider, model) {
-        return Promise.resolve((0, route_1.resolveRouteModel)(provider, model));
+        return Promise.resolve(resolveRouteModel(provider, model));
     }
     /**
      * stream：翻译整段消息历史里的 ImageBlock 为文字后委托 deepseek 主文本模型。
@@ -55,13 +52,12 @@ class PeriscopeBridgeAdapter extends dsh_llm_1.LlmAdapter {
      * - provider 重写为 deepseek-official，model/其余字段透传。任何视觉失败都不抛错、不中断会话。
      */
     async *stream(options) {
-        const { messages, records } = await (0, stream_core_1.translateMessages)(options.messages, {
+        const { messages, records } = await translateMessages(options.messages, {
             readImage: this.readImage,
             describeImage: this.describeImage,
             cache: this.cache,
         });
-        (0, stream_core_1.emitImageDescribed)(this.sink, options.sessionId, records);
-        yield* this.delegate((0, route_1.toDelegateOptions)({ ...options, messages }));
+        emitImageDescribed(this.sink, options.sessionId, records);
+        yield* this.delegate(toDelegateOptions({ ...options, messages }));
     }
 }
-exports.PeriscopeBridgeAdapter = PeriscopeBridgeAdapter;

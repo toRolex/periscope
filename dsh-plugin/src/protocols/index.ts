@@ -1,7 +1,7 @@
-import { Protocol, ProtocolAdapter } from './types';
-import { openaiAdapter } from './openai';
-import { anthropicAdapter } from './anthropic';
-import { responsesAdapter } from './responses';
+import { Protocol, ProtocolAdapter } from './types.js';
+import { openaiAdapter } from './openai.js';
+import { anthropicAdapter } from './anthropic.js';
+import { responsesAdapter } from './responses.js';
 
 const ADAPTERS: Record<Protocol, ProtocolAdapter> = {
   openai: openaiAdapter,

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { normalizeImageBlock, translateContent } from './translate';
+import { normalizeImageBlock, translateContent } from './translate.js';
 
 /**
  * 桥接核心 translateContent 测试：注入 fake readImage / describeImage，全程离线，不依赖 dsh 真实类型。

@@ -2,10 +2,10 @@ import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm';
 import type { SessionService } from '@deepseek-ai/dsh-session';
-import { PeriscopeBridgeAdapter } from './adapter';
-import { PERISCOPE_PROVIDER } from './route';
-import { makeImageDescribedSink } from './stream-core';
-import { VisionConfigInput, resolveVisionConfig } from './vision-config';
+import { PeriscopeBridgeAdapter } from './adapter.js';
+import { PERISCOPE_PROVIDER } from './route.js';
+import { makeImageDescribedSink } from './stream-core.js';
+import { VisionConfigInput, resolveVisionConfig } from './vision-config.js';
 
 /**
  * periscope 的 dsh 原生插件入口（cordis 插件形态，对齐官方 llm-deepseek 适配器的导出形状）。

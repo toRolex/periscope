@@ -5,7 +5,7 @@ import {
   DEFAULT_VISION_PROTOCOL,
   VISION_ENV,
   resolveVisionConfig,
-} from './vision-config';
+} from './vision-config.js';
 
 /**
  * 视觉端点配置解析（cordis.yml + env fallback，apiKey 仅从 env 读取）的纯逻辑测试。

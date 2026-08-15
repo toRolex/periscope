@@ -1,15 +1,8 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Config = exports.inject = exports.name = void 0;
-exports.apply = apply;
-const schemastery_1 = __importDefault(require("@deepseek-ai/schemastery"));
-const adapter_1 = require("./adapter");
-const route_1 = require("./route");
-const stream_core_1 = require("./stream-core");
-const vision_config_1 = require("./vision-config");
+import Schema from '@deepseek-ai/schemastery';
+import { PeriscopeBridgeAdapter } from './adapter.js';
+import { PERISCOPE_PROVIDER } from './route.js';
+import { makeImageDescribedSink } from './stream-core.js';
+import { resolveVisionConfig } from './vision-config.js';
 /**
  * periscope 的 dsh 原生插件入口（cordis 插件形态，对齐官方 llm-deepseek 适配器的导出形状）。
  *
@@ -64,30 +57,30 @@ const vision_config_1 = require("./vision-config");
  * ───────────────────────────────────────────────────────────────────────────────────────────────
  */
 /** 插件名（cordis 纤维诊断与 logger 命名）。 */
-exports.name = 'periscope-deepseek';
+export const name = 'periscope-deepseek';
 /** 依赖的 cordis 服务：llm（注册适配器 + 委托主文本模型都要它）。attachments/sessions 经 ctx 挂点取。 */
-exports.inject = ['llm'];
+export const inject = ['llm'];
 /**
  * cordis.yml 配置段的 schemastery 校验 schema（对齐 Config 类型，全可选）。
  * 默认值与 env fallback 不在 schema 链里处理，而由 resolveVisionConfig 纯函数统一裁决。
  */
-exports.Config = schemastery_1.default.object({
-    protocol: schemastery_1.default.union(['openai', 'anthropic', 'responses']),
-    baseUrl: schemastery_1.default.string(),
-    model: schemastery_1.default.string(),
-    apiKeyEnv: schemastery_1.default.string(),
+export const Config = Schema.object({
+    protocol: Schema.union(['openai', 'anthropic', 'responses']),
+    baseUrl: Schema.string(),
+    model: Schema.string(),
+    apiKeyEnv: Schema.string(),
 });
 /**
  * 插件入口：解析视觉端点配置 → 构造桥接适配器（注入委托 / 读图 / image/described 落点）
  * → 注册 periscope-deepseek route。stream() 内的 ImageBlock 翻译与降级逻辑见 adapter.ts / stream-core.ts。
  */
-function apply(ctx, config) {
-    const vision = (0, vision_config_1.resolveVisionConfig)(config, process.env);
-    const adapter = new adapter_1.PeriscopeBridgeAdapter({
+export function apply(ctx, config) {
+    const vision = resolveVisionConfig(config, process.env);
+    const adapter = new PeriscopeBridgeAdapter({
         vision,
         delegate: (options) => ctx.llm.stream(options),
         readImage: (attachment) => ctx.attachments.readImage(attachment),
-        sink: (0, stream_core_1.makeImageDescribedSink)({
+        sink: makeImageDescribedSink({
             // 推断挂点（见上「已知限制 B」）：会话服务按 id 取句柄后 append log-only 事件。
             appendToSession: (sessionId, record) => {
                 const sessions = ctx.get('sessions');
@@ -97,7 +90,7 @@ function apply(ctx, config) {
             logWarn: (message, error) => ctx.logger.warn(message, error),
         }),
     });
-    ctx.llm.registerAdapter([route_1.PERISCOPE_PROVIDER], adapter);
+    ctx.llm.registerAdapter([PERISCOPE_PROVIDER], adapter);
 }
 /** default 导出同一插件对象（CommonJS 被 ESM 宿主 import 时的兜底，见上注释）。 */
-exports.default = { name: exports.name, inject: exports.inject, Config: exports.Config, apply };
+export default { name, inject, Config, apply };

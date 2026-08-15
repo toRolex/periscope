@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { getProtocol } from './index';
-import { Protocol } from './types';
+import { getProtocol } from './index.js';
+import { Protocol } from './types.js';
 
 test('getProtocol 返回 openai 适配器', () => {
   assert.equal(getProtocol('openai').name, 'openai');
