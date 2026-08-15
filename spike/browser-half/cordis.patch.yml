@@ -1,0 +1,18 @@
+# spike #32 即弃最小包的 bundle patch（dsh.bundle 机制，host half 装载面）。
+#
+# 本包 package.json 同时声明：
+#   "dsh": { "bundle": { "patch": "./cordis.patch.yml" },   # server host-half
+#            "client": { "platform": "web" } }               # browser half（dsh.client）
+#
+# `dsh plugin --profile web add file:<本包>` 后，dsh 检测到 dsh.bundle，把本包名追加进
+# profile 的 dsh.profile.bundles；下次启动 web profile 时本 patch 作为一层 insert 应用，
+# 把下面的行插进 cordis 树。cordis 按行 name 解析本包 → lib/index.js（host 插件），
+# 其 apply() 注册一个 settings 命名空间，供 browser half 经 settings 网关读写。
+#
+# 同一行也是 client-modules 的扫描对象：host loader 装载本包后，client-modules 读到
+# package.json 的 dsh.client 声明，把 lib/client.js 组进 window.__DSH_BOOT__ 并
+# serve 在 /plugins/dsh-spike-browser-half/client.js（“dsh.client 行同时是 host 行”）。
+
+- insert:
+    - id: dsh-spike-browser-half
+      name: 'dsh-spike-browser-half'

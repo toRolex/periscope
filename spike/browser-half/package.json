@@ -1,0 +1,39 @@
+{
+  "name": "dsh-spike-browser-half",
+  "version": "0.0.0",
+  "description": "spike #32 即弃最小双 half 包：验证 dsh browser half 全链路（dsh.client 装载 → settings.plugin.item 渲染 → settings 落盘读回）。非正式功能。",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
