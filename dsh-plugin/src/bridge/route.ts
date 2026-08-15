@@ -78,12 +78,11 @@ export function resolveRouteModel(provider: string, modelId: string): RouteModel
 }
 
 /**
- * 纯文本委托改写（本票阶段：原样转发 + 委托 deepseek 主文本模型）。
- * 仅把 provider 重写为 deepseek 主文本路由；model/messages/其余字段原样透传。
+ * 委托改写：仅把 provider 重写为 deepseek 主文本路由；model/messages/其余字段原样透传。
  * 泛型保持入参形状，返回新对象、不改写入参。
  *
- * 带图 prompt 在本票不翻译（归 #28）：图片块随 messages 原样带向 deepseek——
- * admission 已因 image 能力声明放行，翻译能力后续票接入。
+ * 调用前 adapter 的 stream()（#29）已把 messages 里的 ImageBlock 译为 `[Image N] 描述` 文字，
+ * 故到达本函数的 messages 对 deepseek 主文本模型可直接消费；本函数不再感知图片。
  */
 export function toDelegateOptions<T extends { provider: string }>(options: T): T {
   return { ...options, provider: DELEGATE_PROVIDER };

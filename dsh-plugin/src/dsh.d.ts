@@ -122,11 +122,60 @@ declare module '@deepseek-ai/cordis' {
     info(...args: unknown[]): void;
   }
 
-  /** cordis 插件上下文（本票只用到 llm 服务与 logger）。 */
+  /**
+   * durable attachment 服务（issue #25 源码核实：cordis Service 挂点，抽象面四件
+   * imageLimits / validateImage / saveImage / readImage）。本票只用 readImage 按 ref 取字节。
+   * readImage(ref, signal?) 返回图片字节（Buffer 是 Uint8Array 子类，故声明为 Uint8Array）。
+   */
+  export interface AttachmentStore {
+    readImage(ref: unknown, signal?: unknown): Promise<Uint8Array>;
+  }
+
+  /**
+   * cordis 插件上下文。llm / attachments / logger 为源码核实的服务挂点。
+   * 会话服务经通用 get('sessions') 逃逸口取（推断挂点，见 plugin.ts 注释——手工 E2E 首要核实地），
+   * 故此处不声明 Context.sessions 字段，只用已核实的 get(name)。
+   */
   export class Context {
     llm: LlmService;
     logger: Logger;
+    attachments: AttachmentStore;
     get(name: string): unknown;
+  }
+}
+
+/**
+ * 会话事件类型表（issue #25 核实：SessionEventMap 为 merge-extensible 普通 interface，
+ * 第三方插件经 declaration merging 以「属性形式直接声明」扩展，禁 extends/方法形式）。
+ * 本包据此扩展 log-only 事件 image/described（attachmentId → 描述），翻译时 append 落 session log。
+ */
+declare module '@deepseek-ai/dsh-session/types' {
+  export interface SessionEventMap {
+    /** log-only：一张图片的视觉描述（含缓存命中与失败降级占位符）。 */
+    'image/described': { attachmentId: string; description: string };
+  }
+}
+
+declare module '@deepseek-ai/dsh-session' {
+  import type { SessionEventMap } from '@deepseek-ai/dsh-session/types';
+
+  export type SessionEventType = keyof SessionEventMap;
+
+  /**
+   * 会话句柄：append-only 事件 log。log-only 事件 append(type, data) 不带 surface 元数据。
+   * ⚠️ 持久化限制（issue #24 核实）：append 无法标 ignorable，image/described 不在仓内生成的
+   * KNOWN_SESSION_EVENT_TYPES，含该事件的会话「进程重启后重载」会被持久化层整体拒载。
+   */
+  export interface Session {
+    append<K extends SessionEventType>(type: K, data: SessionEventMap[K]): void;
+  }
+
+  /**
+   * 会话服务（推断 API：按 id 取会话句柄）。真实挂点/方法名以 dsh 运行时为准——
+   * 这是本票手工 E2E 的首要核实地（见 plugin.ts 注释与汇报）。
+   */
+  export interface SessionService {
+    get(sessionId: string): Session | undefined;
   }
 }
 

@@ -28,6 +28,10 @@ declare const fetch: (
   text(): Promise<string>;
 }>;
 
+/** 定时器最小面（桥接层视觉描述超时降级用）；句柄收窄为 unknown。 */
+declare function setTimeout(fn: () => void, ms: number): unknown;
+declare function clearTimeout(handle: unknown): void;
+
 declare module 'node:fs' {
   export function readFileSync(p: string): ByteBuf;
   export function writeFileSync(p: string, data: string | ByteBuf): void;
