@@ -87,10 +87,21 @@ const EMPTY_READ = {
   },
 };
 
+/** describeEffective 默认结果：完全未配置（configured:false，全字段 default 来源）。 */
+const EMPTY_EFFECTIVE = {
+  ok: true,
+  value: {
+    value: { protocol: 'openai', baseUrl: '', model: '', apiKeyEnv: 'PERISCOPE_API_KEY' },
+    sources: { protocol: 'default', baseUrl: 'default', model: 'default', apiKeyEnv: 'default' },
+    configured: false,
+  },
+};
+
 /** 组装假 ctx 并 apply：捕获注册的卡片组件与全部 rpc.call。 */
 function bench(
   describeResult: unknown = EMPTY_READ,
   updateResult: unknown = { ok: true, value: null },
+  effectiveResult: unknown = EMPTY_EFFECTIVE,
 ): Bench {
   const calls: RpcCall[] = [];
   let registered: RegisteredCard | undefined;
@@ -98,6 +109,7 @@ function bench(
     call: async (channel: string, endpoint: string, payload: unknown): Promise<unknown> => {
       calls.push({ channel, endpoint, payload });
       if (endpoint === 'describe') return describeResult;
+      if (endpoint === 'describeEffective') return effectiveResult;
       return updateResult;
     },
   };
@@ -429,4 +441,129 @@ test('保存成功后把当前 draft 记为已加载值（后续 discard 回到�
     discard.props.onClick();
   });
   assert.equal(renderer.root.findByProps({ 'data-field': 'baseUrl' }).props.value, 'https://saved.example.com/v1');
+});
+
+// ── #35 生效值回显 + 未配置引导（describeEffective 归并生效值） ────────────────
+
+test('挂载时经 connection.rpc.call(/periscope, describeEffective) 读归并生效值并展示', async () => {
+  const effective = {
+    ok: true,
+    value: {
+      value: { protocol: 'anthropic', baseUrl: 'https://env.example.com/v1', model: 'yml-model', apiKeyEnv: 'MY_KEY' },
+      sources: { protocol: 'settings', baseUrl: 'env', model: 'cordis', apiKeyEnv: 'settings' },
+      configured: true,
+    },
+  };
+  const { calls, registered } = bench(EMPTY_READ, { ok: true, value: null }, effective);
+  const renderer = await renderCard(registered);
+
+  const effCall = calls.find((c) => c.endpoint === 'describeEffective');
+  assert.deepEqual(effCall, { channel: '/periscope', endpoint: 'describeEffective', payload: null });
+
+  assert.equal(renderer.root.findByProps({ 'data-effective-field': 'baseUrl' }).props.children, 'https://env.example.com/v1');
+  assert.equal(renderer.root.findByProps({ 'data-effective-field': 'model' }).props.children, 'yml-model');
+  assert.equal(renderer.root.findByProps({ 'data-effective-field': 'apiKeyEnv' }).props.children, 'MY_KEY');
+});
+
+test('生效值来源标记映射：settings / cordis.yml / env / 默认', async () => {
+  const effective = {
+    ok: true,
+    value: {
+      value: { protocol: 'openai', baseUrl: 'https://env.example.com/v1', model: 'yml-model', apiKeyEnv: 'PERISCOPE_API_KEY' },
+      sources: { protocol: 'default', baseUrl: 'env', model: 'cordis', apiKeyEnv: 'default' },
+      configured: true,
+    },
+  };
+  const { registered } = bench(EMPTY_READ, { ok: true, value: null }, effective);
+  const renderer = await renderCard(registered);
+
+  assert.equal(renderer.root.findByProps({ 'data-effective-source': 'protocol' }).props.children, '默认');
+  assert.equal(renderer.root.findByProps({ 'data-effective-source': 'baseUrl' }).props.children, '环境变量');
+  assert.equal(renderer.root.findByProps({ 'data-effective-source': 'model' }).props.children, 'cordis.yml');
+  assert.equal(renderer.root.findByProps({ 'data-effective-source': 'apiKeyEnv' }).props.children, '默认');
+});
+
+test('未配置（configured:false）时显示可操作引导（指向本卡片或 env 位置）', async () => {
+  const { calls, registered } = bench(EMPTY_READ, { ok: true, value: null }, EMPTY_EFFECTIVE);
+  const renderer = await renderCard(registered);
+
+  assert.ok(calls.find((c) => c.endpoint === 'describeEffective'), '应发起 describeEffective');
+  const guidance = renderer.root.findByProps({ 'data-guidance': true });
+  assert.ok(guidance, '未配置应显示引导');
+  assert.match(String(guidance.props.children), /表单/, '应指出本卡片填写路径');
+  assert.match(String(guidance.props.children), /PERISCOPE_VISION_BASE_URL/, '应指出 env 配置位置');
+});
+
+test('已配置（configured:true）时不显示未配置引导', async () => {
+  const effective = {
+    ok: true,
+    value: {
+      value: { protocol: 'openai', baseUrl: 'https://x.example.com/v1', model: 'm', apiKeyEnv: 'PERISCOPE_API_KEY' },
+      sources: { protocol: 'settings', baseUrl: 'settings', model: 'settings', apiKeyEnv: 'default' },
+      configured: true,
+    },
+  };
+  const { registered } = bench(EMPTY_READ, { ok: true, value: null }, effective);
+  const renderer = await renderCard(registered);
+
+  assert.throws(
+    () => renderer.root.findByProps({ 'data-guidance': true }),
+    undefined,
+    '已配置不应显示未配置引导',
+  );
+});
+
+test('生效值空字段显示占位符（—）而非空白', async () => {
+  const { registered } = bench(EMPTY_READ, { ok: true, value: null }, EMPTY_EFFECTIVE);
+  const renderer = await renderCard(registered);
+
+  assert.equal(renderer.root.findByProps({ 'data-effective-field': 'baseUrl' }).props.children, '—');
+  assert.equal(renderer.root.findByProps({ 'data-effective-field': 'model' }).props.children, '—');
+});
+
+test('describeEffective 返回 registered:false → 显示 settings 服务不可用提示（提及保存不可用），表单仍可编辑', async () => {
+  const { registered } = bench(EMPTY_READ, { ok: true, value: null }, { ok: true, value: { registered: false } });
+  const renderer = await renderCard(registered);
+
+  const note = renderer.root.findByProps({ 'data-effective-note': true });
+  assert.ok(note, '应显示 settings 服务不可用提示');
+  assert.match(String(note.props.children), /settings 服务不可用/);
+  assert.match(String(note.props.children), /保存/, '应明确指出保存不可用（与表单仍可编辑不矛盾）');
+  assert.equal(renderer.root.findByProps({ 'data-field': 'protocol' }).props.value, 'openai');
+});
+
+test('保存成功后重发 describeEffective 刷新生效区（刚写入的新值立即回显）', async () => {
+  const { calls, registered } = bench(EMPTY_READ, { ok: true, value: null }, EMPTY_EFFECTIVE);
+  const renderer = await renderCard(registered);
+  assert.equal(calls.filter((c) => c.endpoint === 'describeEffective').length, 1, '挂载时读一次');
+
+  const base = renderer.root.findByProps({ 'data-field': 'baseUrl' });
+  await TestRenderer.act(async () => {
+    base.props.onChange({ target: { value: 'https://new.example.com/v1' } });
+  });
+  const save = renderer.root.findByProps({ 'data-action': 'save' });
+  await TestRenderer.act(async () => {
+    save.props.onClick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
+  assert.ok(calls.find((c) => c.endpoint === 'update'), '保存应发起 update');
+  assert.equal(calls.filter((c) => c.endpoint === 'describeEffective').length, 2, '保存成功后应重发 describeEffective 刷新');
+});
+
+test('describeEffective 失败 → 不渲染生效区，表单仍可用', async () => {
+  const { registered } = bench(
+    EMPTY_READ,
+    { ok: true, value: null },
+    { ok: false, error: { code: 'settings-rejected', message: 'boom', details: { ns: 'periscope' } } },
+  );
+  const renderer = await renderCard(registered);
+
+  assert.throws(
+    () => renderer.root.findByProps({ 'data-effective-card': true }),
+    undefined,
+    'describeEffective 失败不应渲染生效区',
+  );
+  assert.equal(renderer.root.findByProps({ 'data-field': 'protocol' }).props.value, 'openai');
+  assert.equal(renderer.root.findByProps({ 'data-field': 'baseUrl' }).props.value, '');
 });

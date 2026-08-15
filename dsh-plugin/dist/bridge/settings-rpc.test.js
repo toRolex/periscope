@@ -1,11 +1,14 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { makePeriscopeRpcHandler, } from './settings-rpc.js';
+import { effectiveFromRead, makePeriscopeRpcHandler, } from './settings-rpc.js';
+import { VISION_ENV } from './vision-config.js';
 /**
  * /periscope connection RPC channel（读当前存储值 / 合并写 user 层）的纯逻辑测试（#33）。
  * 全程离线：settings 服务以最小 port 注入，不触碰 dsh 运行时（壳层接线归 plugin.ts 手工 E2E）。
  * #34 起 handler 需命名空间名（写进 settings-rejected 的 details.ns），并新增错误分支产出
  * dsh wire schema 兼容 details 的断言（review-34 反馈：details 形状不符会令浏览器侧 ZodError 拒绝）。
+ * #35 新增 describeEffective 端点：暴露 settings > cordis.yml > env 归并后的生效配置值
+ * （含每字段来源标记与就绪判定），供配置卡片回显；env 以注入面传入，不依赖 process.env。
  */
 /** 与 plugin.ts NS（settingsNamespace('periscope')）同值的测试常量。 */
 const NS = 'periscope';
@@ -158,4 +161,134 @@ test('update 端点：patch 全为合法键（四字段任意子集）→ 通过
     const result = await handler('update', { patch });
     assert.equal(result.ok, true);
     assert.deepEqual(calls, [{ patch, expectedRevision: undefined }]);
+});
+test('describeEffective：settings/user > cordis/base > env fallback 的归并生效值与来源标记', async () => {
+    const read = {
+        value: { baseUrl: 'https://settings.example.com/v1', model: 'settings-model' },
+        user: { baseUrl: 'https://settings.example.com/v1', model: 'settings-model' },
+        base: { baseUrl: 'https://yml.example.com/v1', model: 'yml-model', apiKeyEnv: 'YML_KEY' },
+        revision: 1,
+    };
+    const env = {
+        [VISION_ENV.baseUrl]: 'https://env.example.com/v1',
+        [VISION_ENV.model]: 'env-model',
+    };
+    const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, env);
+    const result = await handler('describeEffective', null);
+    assert.equal(result.ok, true);
+    if (!result.ok)
+        return;
+    const value = result.value;
+    assert.equal(value.value.baseUrl, 'https://settings.example.com/v1', 'settings 优先于 cordis/env');
+    assert.equal(value.value.model, 'settings-model', 'settings 优先');
+    assert.equal(value.value.apiKeyEnv, 'YML_KEY', 'apiKeyEnv 无 env fallback，取 cordis');
+    assert.equal(value.sources.baseUrl, 'settings');
+    assert.equal(value.sources.model, 'settings');
+    assert.equal(value.sources.apiKeyEnv, 'cordis');
+    assert.equal(value.configured, true);
+});
+test('describeEffective：user 层缺省时 cordis/env 生效并标记来源', async () => {
+    const read = {
+        value: { baseUrl: 'https://yml.example.com/v1' },
+        base: { baseUrl: 'https://yml.example.com/v1' },
+        revision: 2,
+    };
+    const env = {
+        [VISION_ENV.protocol]: 'responses',
+        [VISION_ENV.model]: 'env-model',
+    };
+    const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, env);
+    const result = await handler('describeEffective', null);
+    assert.equal(result.ok, true);
+    if (!result.ok)
+        return;
+    const value = result.value;
+    assert.equal(value.value.baseUrl, 'https://yml.example.com/v1', 'cordis baseUrl 生效');
+    assert.equal(value.value.model, 'env-model', 'cordis 缺 model → env fallback');
+    assert.equal(value.value.protocol, 'responses', 'cordis 缺 protocol → env fallback');
+    assert.equal(value.sources.baseUrl, 'cordis');
+    assert.equal(value.sources.model, 'env');
+    assert.equal(value.sources.protocol, 'env');
+});
+test('describeEffective：全缺省 → 默认值（openai + 空端点 + 默认 apiKeyEnv），configured:false', async () => {
+    const read = { value: {}, revision: 0 };
+    const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, {});
+    const result = await handler('describeEffective', null);
+    assert.equal(result.ok, true);
+    if (!result.ok)
+        return;
+    const value = result.value;
+    assert.equal(value.value.protocol, 'openai');
+    assert.equal(value.value.baseUrl, '');
+    assert.equal(value.value.model, '');
+    assert.equal(value.value.apiKeyEnv, 'PERISCOPE_API_KEY');
+    assert.equal(value.sources.protocol, 'default');
+    assert.equal(value.sources.baseUrl, 'default');
+    assert.equal(value.sources.model, 'default');
+    assert.equal(value.sources.apiKeyEnv, 'default');
+    assert.equal(value.configured, false);
+});
+test('describeEffective：settings 服务/命名空间不可用 → registered:false（不抛错）', async () => {
+    const handler = makePeriscopeRpcHandler(fakePort({ read: () => undefined }), NS, {});
+    const result = await handler('describeEffective', null);
+    assert.deepEqual(result, { ok: true, value: { registered: false } });
+});
+test('describeEffective：port.read 抛错 → settings-rejected 错误分支，不抛错', async () => {
+    const handler = makePeriscopeRpcHandler(fakePort({
+        read: () => {
+            throw new Error('settings unavailable');
+        },
+    }), NS, {});
+    const result = await handler('describeEffective', null);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+        assert.equal(result.error.code, 'settings-rejected');
+        assert.deepEqual(result.error.details, { ns: NS }, 'settings-rejected details.ns 应对齐 wire schema');
+    }
+});
+test('describeEffective：settings protocol 非法 → 生效值回落默认 openai，来源仍标 settings（刻意语义：来源标记配置所在层）', async () => {
+    const read = {
+        value: { protocol: 'not-a-protocol' },
+        user: { protocol: 'not-a-protocol' },
+        revision: 0,
+    };
+    const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, {});
+    const result = await handler('describeEffective', null);
+    assert.equal(result.ok, true);
+    if (!result.ok)
+        return;
+    const value = result.value;
+    assert.equal(value.value.protocol, 'openai', '非法 protocol 回落到默认');
+    assert.equal(value.sources.protocol, 'settings', '来源按配置层标记（非法值所在层）');
+});
+test('effectiveFromRead：纯函数直接可测（env 注入，多层来源标记）', () => {
+    const read = {
+        value: { model: 'settings-model' },
+        user: { model: 'settings-model' },
+        base: { baseUrl: 'https://yml.example.com/v1' },
+        revision: 0,
+    };
+    const eff = effectiveFromRead(read, { [VISION_ENV.model]: 'env-model' });
+    const shape = eff;
+    assert.equal(shape.configured, true);
+    assert.equal(shape.value.baseUrl, 'https://yml.example.com/v1');
+    assert.equal(shape.value.model, 'settings-model');
+    assert.equal(shape.sources.baseUrl, 'cordis');
+    assert.equal(shape.sources.model, 'settings');
+    assert.deepEqual(effectiveFromRead(undefined, {}), { registered: false });
+});
+test('describeEffective：configured 判定仅依赖 baseUrl/model（protocol 单独配置不算就绪）', async () => {
+    const read = {
+        value: { protocol: 'anthropic' },
+        user: { protocol: 'anthropic' },
+        revision: 0,
+    };
+    const handler = makePeriscopeRpcHandler(fakePort({ read: () => read }), NS, {});
+    const result = await handler('describeEffective', null);
+    assert.equal(result.ok, true);
+    if (!result.ok)
+        return;
+    const value = result.value;
+    assert.equal(value.value.protocol, 'anthropic');
+    assert.equal(value.configured, false, '仅配 protocol、缺 baseUrl/model → 未就绪');
 });

@@ -17,9 +17,11 @@ import { makePeriscopeRpcHandler } from './settings-rpc.js';
  *   > cordis.yml entry（base 层，插件配置段）> env fallback（PERISCOPE_VISION_*）。
  *   优先级内建于 installSettingsSection 分层 + vision-config 纯函数的逐字段合并；
  *   apiKey 仍仅从 apiKeyEnv 命名的环境变量读取（字面 key 不是配置值）。
- *   另注册 connection RPC channel `/periscope`（describe 读 / update 写，authority:loopback），
- *   供 browser half 配置卡片经 ctx.connection.rpc.call 读写——host handler 服务直调 ctx.settings，
- *   绕开 api-proxy 的 exposedNamespaces() 白名单（spike #32 实证网关拒第三方命名空间）。
+ *   另注册 connection RPC channel `/periscope`（describe 读当前存储值 / describeEffective 读归并生效值 /
+ *   update 合并写，authority:loopback），供 browser half 配置卡片经 ctx.connection.rpc.call 读写与回显——
+ *   host handler 服务直调 ctx.settings，绕开 api-proxy 的 exposedNamespaces() 白名单
+ *   （spike #32 实证网关拒第三方命名空间）。#35 的 describeEffective 返回 settings user > cordis.yml
+ *   base > env fallback 的归并生效值（含每字段来源与就绪判定），供卡片回显与未配置引导。
  *
  * ──────────────────────────── 手工 E2E 验收（无法 CI 自动化，需真实 dsh 宿主） ────────────────────────────
  * 前置：本机已装 dsh CLI（@deepseek-ai/dsh）、pnpm；deepseek 主文本路由可用（DEEPSEEK_API_KEY 已 export，
@@ -65,6 +67,11 @@ import { makePeriscopeRpcHandler } from './settings-rpc.js';
  *    → 打开卡片值仍在（读回走 describe）；apiKey 字段填字面 key（如 sk-…）被拒，只收环境变量名；
  *    discard 还原未保存的编辑。**若卡片未出现**：确认 dsh web 是「新增 dsh.client 声明后」启动的
  *    （负缓存），且 `dsh --profile web --dump-config` 的 client 图里含 periscope-dsh 行。
+ * 【验收点 9：生效值回显 + 未配置引导（#35）】卡片顶部出现「当前生效配置」只读区：展示
+ *    describeEffective 的归并生效值（settings > cordis.yml > env）与每字段来源标记；已有 cordis.yml /
+ *    env 配置（如 PERISCOPE_VISION_BASE_URL）时不强制重复填写，来源标 cordis.yml/环境变量；
+ *    全部未配置时显示可操作引导（指向本卡片表单或 env 位置）。Seam 3 端到端冒烟见
+ *    `src/bridge/e2e-smoke.test.ts`（settings 写入 → 插件读配置 → describe 视觉端点 → mock 返回）。
  *
  * ── 已知限制与首要核实地（务必读）────────────────────────────────────────────────────────────
  * A. 【image/described 重启拒载 · dsh 缺口】本插件经 declaration merging 扩展 SessionEventMap 后
@@ -143,7 +150,7 @@ export function apply(ctx, config) {
     // connection 服务可选：缺省时该通道不注册，插件其余功能不受影响。
     registerPeriscopeRpc(ctx);
 }
-/** 注册 /periscope connection RPC channel：describe 读当前存储值 / update 合并写 user 层。 */
+/** 注册 /periscope connection RPC channel：describe 读当前存储值 / describeEffective 读归并生效值 / update 合并写 user 层。 */
 function registerPeriscopeRpc(ctx) {
     ctx.inject(['connection'], (connectionCtx) => {
         const settings = () => connectionCtx.get('settings');

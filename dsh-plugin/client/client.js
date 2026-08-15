@@ -1,5 +1,5 @@
 /**
- * periscope-dsh browser half —— 视觉端点配置卡片（issue #34）。
+ * periscope-dsh browser half —— 视觉端点配置卡片（issue #34）+ 生效值回显/未配置引导（issue #35）。
  *
  * 装载面：client-modules（机制 B，spike #32 实证）。本文件是手写 CJS factory bundle，
  * 与 tsdown `clientBundle()` 产物同构：
@@ -14,8 +14,12 @@
  *
  * 读写配置：一律经 `ctx.connection.rpc.call('/periscope', endpoint, payload)` 走 host 侧
  * connection RPC channel（#33 settings-rpc.ts，authority:loopback）——describe 读当前存储值、
- * update 合并写 user 层。卡片不直接触碰 settings 服务，也不走 settings 网关
+ * describeEffective 读「settings user > cordis.yml base > env fallback」归并生效值、update 合并写
+ * user 层。卡片不直接触碰 settings 服务，也不走 settings 网关
  * （api-proxy 的 exposedNamespaces() 白名单拒第三方命名空间，spike #32 实测阻断）。
+ * #35 生效值回显：只读区展示归并生效值与每字段来源（settings/cordis.yml/env/默认），
+ * 已有 cordis.yml/env 配置的用户不重复填写、能看到优先级结果；未配置（baseUrl/model 空白）时
+ * 给出可操作引导（指向本卡片表单或 env 位置）。
  * apiKey 字段只收**环境变量名**：空允许（本地无鉴权端点可留空）；非空须匹配合法环境变量名
  * 模式（/^[A-Za-z_][A-Za-z0-9_]*$/）。形如 sk-… 的字面 key 因含连字符/点号被拒；纯字母数字
  * 的字面 key 与 env 名无法区分，属尽力而为的 UI 卫生——真正的安全边界在 server 侧：key 只从
@@ -48,7 +52,19 @@ window.__ModuleLoader__.load({
         'color:var(--dsw-alias-label-primary)}' +
         '.periscope-card button:disabled{opacity:.5;cursor:default}' +
         '.periscope-hint,.periscope-msg{font-size:12px;color:var(--dsw-alias-label-secondary)}' +
-        '.periscope-error{font-size:12px;color:var(--dsw-alias-label-error)}'
+        '.periscope-error{font-size:12px;color:var(--dsw-alias-label-error)}' +
+        '.periscope-effective{display:flex;flex-direction:column;gap:6px;padding:10px 12px;' +
+        'border:1px solid var(--dsw-alias-border-l2);border-radius:8px;margin-bottom:12px;' +
+        'max-width:520px}' +
+        '.periscope-effective-row{display:flex;gap:8px;align-items:baseline;font-size:13px;' +
+        'flex-wrap:wrap}' +
+        '.periscope-effective-value{font-family:var(--dsw-alias-font-mono,monospace);' +
+        'word-break:break-all}' +
+        '.periscope-effective-source{font-size:11px;color:var(--dsw-alias-label-secondary);' +
+        'border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:0 4px}' +
+        '.periscope-guidance{font-size:12px;color:var(--dsw-alias-label-secondary);' +
+        'background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);' +
+        'border-radius:6px;padding:6px 8px}'
       document.head.appendChild(styleTag)
     }
 
@@ -170,6 +186,58 @@ window.__ModuleLoader__.load({
       return 'error'
     }
 
+    // ── #35 生效值回显（describeEffective：settings > cordis.yml > env 归并结果） ──
+
+    /** 来源标记 → 可读文案（对齐 server 侧 PeriscopeEffectiveSource）。 */
+    function sourceLabel(source) {
+      if (source === 'settings') return 'settings'
+      if (source === 'cordis') return 'cordis.yml'
+      if (source === 'env') return '环境变量'
+      return '默认'
+    }
+
+    /** 生效配置单字段行：label + 值 + 来源标记。空值显示占位符 —（区别于未渲染）。 */
+    function renderEffectiveField(field, label, value, source) {
+      return React.createElement('div', { className: 'periscope-effective-row' },
+        React.createElement('span', { className: 'periscope-label' }, label),
+        React.createElement('span', { 'data-effective-field': field, className: 'periscope-effective-value' },
+          value === '' ? '—' : value),
+        React.createElement('span', { 'data-effective-source': field, className: 'periscope-effective-source' },
+          sourceLabel(source)),
+      )
+    }
+
+    /**
+     * 生效配置只读区：展示 describeEffective 的归并生效值（settings > cordis.yml > env 优先级）
+     * 与每字段来源标记；未配置（configured:false）时给出可操作引导（指向本卡片表单或 env 位置）。
+     * settings 服务不可用（registered:false）时提示来源为 cordis.yml/env；describeEffective 失败
+     * （effective 为 null）时不渲染本区、不阻断表单。
+     */
+    function renderEffectiveSection(effective) {
+      if (!effective) return null
+      if (effective.registered === false) {
+        return React.createElement('div', { className: 'periscope-effective', 'data-effective-card': true },
+          React.createElement('div', { className: 'periscope-label' }, '当前生效配置'),
+          React.createElement('div', { className: 'periscope-hint', 'data-effective-note': true },
+            'settings 服务不可用：生效配置来自 cordis.yml 与 env；本卡片保存不可用（需 settings 服务就绪）'),
+        )
+      }
+      var e = effective.value
+      return React.createElement('div', { className: 'periscope-effective', 'data-effective-card': true },
+        React.createElement('div', { className: 'periscope-label' }, '当前生效配置（优先级 settings > cordis.yml > env）'),
+        renderEffectiveField('protocol', '协议', e.protocol, effective.sources.protocol),
+        renderEffectiveField('baseUrl', 'Base URL', e.baseUrl, effective.sources.baseUrl),
+        renderEffectiveField('model', '模型', e.model, effective.sources.model),
+        renderEffectiveField('apiKeyEnv', 'apiKey 环境变量名', e.apiKeyEnv, effective.sources.apiKeyEnv),
+        effective.configured ? null : React.createElement('div', {
+          className: 'periscope-guidance',
+          'data-guidance': true,
+        }, '视觉端点未配置：请在下方表单填写（保存后写入 settings，优先级最高），或 export ' +
+          'PERISCOPE_VISION_BASE_URL / PERISCOPE_VISION_MODEL（apiKey 仅从环境变量读取，默认 ' +
+          'PERISCOPE_API_KEY）'),
+      )
+    }
+
     // ── 卡片组件：staged form（save / discard），读写经 connection RPC channel ──────
 
     /**
@@ -193,6 +261,9 @@ window.__ModuleLoader__.load({
       var busyState = React.useState(false)
       var busy = busyState[0]
       var setBusy = busyState[1]
+      var effectiveState = React.useState(null)
+      var effective = effectiveState[0]
+      var setEffective = effectiveState[1]
 
       React.useEffect(function () {
         var cancelled = false
@@ -207,6 +278,13 @@ window.__ModuleLoader__.load({
             if (cancelled) return
             setMsg('读取配置失败：' + (e && e.message ? e.message : String(e)))
           })
+        // 归并生效值（settings > cordis.yml > env）供只读回显；失败不阻断表单。
+        Promise.resolve(conn.rpc.call('/periscope', 'describeEffective', null))
+          .then(function (res) {
+            if (cancelled) return
+            if (res && res.ok) setEffective(res.value)
+          })
+          .catch(function () {})
         return function () { cancelled = true }
       }, [])
 
@@ -234,6 +312,12 @@ window.__ModuleLoader__.load({
             if (res && res.ok) {
               setLoaded(draft)
               setMsg('已保存')
+              // 保存已改写 user 层：重读归并生效值，让「当前生效配置」只读区与刚写入的新值同步。
+              Promise.resolve(conn.rpc.call('/periscope', 'describeEffective', null))
+                .then(function (effRes) {
+                  if (effRes && effRes.ok) setEffective(effRes.value)
+                })
+                .catch(function () {})
             } else {
               setMsg('保存失败：' + errorTextOf(res))
             }
@@ -252,6 +336,7 @@ window.__ModuleLoader__.load({
 
       return React.createElement('div', { className: 'periscope-card', 'data-periscope-card': true },
         React.createElement('div', { className: 'periscope-card-title' }, 'periscope 视觉端点'),
+        renderEffectiveSection(effective),
         renderProtocolSelect(draft.protocol, onChange),
         renderTextField('baseUrl', 'Base URL', draft.baseUrl, 'https://your-vision-endpoint/v1', onChange),
         renderTextField('model', '模型', draft.model, 'your-vision-model', onChange),
