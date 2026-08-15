@@ -40,7 +40,9 @@ periscope 以 **Agent Plugins 1.0.0** 标准打包，主形态是一个标准插
 
 ## 🚀 快速上手
 
-以 Claude Code 为例：
+两条路径二选一，同一个 describe 能力。
+
+### 路径一 · Claude Code
 
 ```bash
 # ① 装成 Claude Code 插件
@@ -58,6 +60,24 @@ node dist/cli/describe.js ./截图.png --intent ocr
 # error TS2322: Type 'string' is not assignable to type 'number'
 #   at src/example.ts:42:5
 ```
+
+### 路径二 · dsh（deepseek-harness）
+
+```bash
+# ① 装成 dsh 插件（本包提交 dist/，支持 git/file 免构建安装）
+dsh plugin --profile web add file:<本包绝对路径>
+dsh --profile web --dump-config   # 复查：cordis 树里应出现 periscope-deepseek 行
+
+# ② 用环境变量配好视觉端点（apiKey 只从 env 读；协议缺省 openai）
+export PERISCOPE_API_KEY=sk-xxx
+export PERISCOPE_VISION_BASE_URL=http://localhost:11434/v1
+export PERISCOPE_VISION_MODEL=qwen2.5-vl
+
+# ③ 启动 Web UI，模型选择器选「periscope（看图桥 → deepseek）」即看图
+dsh web
+```
+
+env 是最短配置路径；想写进 cordis.yml 的完整写法见「接入方式 · dsh」。
 
 ---
 
@@ -85,14 +105,7 @@ node dist/cli/describe.js ./demo.png   # dist/ 已提交，无需 build
 
 ### dsh（periscope-dsh）
 
-```bash
-# 本包提交 dist/，支持 git/file 免构建安装
-dsh plugin --profile web add file:<本包绝对路径>
-dsh --profile web --dump-config   # 复查 cordis 树里出现 periscope-deepseek 行
-dsh web                           # 模型选择器选「periscope（看图桥 → deepseek）」
-```
-
-dsh 侧配置走 dsh Config（cordis.yml + env fallback），apiKey 仅从环境变量读取：
+安装与三步使用见「快速上手 · 路径二」。dsh 侧配置走 dsh Config（cordis.yml + env fallback），apiKey 仅从环境变量读取；env 之外想显式写进配置：
 
 ```yaml
 - insert:
@@ -103,6 +116,8 @@ dsh 侧配置走 dsh Config（cordis.yml + env fallback），apiKey 仅从环境
         baseUrl: https://your-vision-endpoint.example.com/v1
         model: your-vision-model
 ```
+
+桥的工作链路（ImageBlock → 视觉端点译文字 → 委托主文本模型）见「用法 · dsh 桥」。
 
 ---
 
