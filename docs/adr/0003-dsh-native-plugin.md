@@ -40,12 +40,24 @@ deepseek-harness（dsh）为 DeepSeek 官方 Cordis 插件式 agent harness（"�
 - CONTEXT.md 增补 dsh / 双宿主 / 桥 术语。
 - 后续切片：dsh 插件骨架（route 注册 + Config）、describe 引擎拷贝、`image/described` 事件、BYOM 翻译接入。按 Q3 约定，本轮不写插件代码。
 
-## 配置面边界与 backlog（2026-08-15 补充）
+## 配置面边界与 backlog（2026-08-15 补充，spike #32 后修订）
 
-periscope-dsh 的视觉端点配置停留在 dsh Config（cordis.yml patch + env fallback），**不提供 dsh Web UI 可视化配置界面**。判定依据：
+### 判定：按 #31 原机制不通过（spike #32 实测）
 
-- **dsh Models 页对第三方插件 closed**：`ProviderEditor.layoutOf` 按 settings 命名空间硬编码，仅 `llm-deepseek` / `llm-pi-ai` 有手写表单，其余落 `unknown` 只渲染 hint；`registerConfigurableProviders` 只能把 provider 列入目录，拿不到表单。
-- **要获得 Web UI 表单的唯一路径是 browser half**：React 组件 + package.json `dsh.client` 声明 + tsdown 预构建 client bundle，经 client-modules 装载 + slots 注册 `settings.plugin.item` 卡片。成本是引入 react + tsdown + `@deepseek-ai/dsh-client-*` 依赖链，与主仓"零构建零依赖"哲学相悖；且 dsh 破坏性迭代期该装载面最易变（与决策 6"流沙上打地基"同理）。
-- **配置痛点已被覆盖**：snippet 生成器（#30）+ 未配置时的可操作引导占位符（指出 cordis.yml / env 位置），零 dsh-UI 耦合。
+spike #32 在真实 dsh 环境逐项实测：browser half 的 UI 装载与渲染可行（机制 B 成立，卡片真实渲染在 Plugins 设置区），但**按 #31 原 spec 指定的机制走不通**，双重阻断：
 
-**Backlog（重开条件）**：dsh 冻结 client-module / slot API，且确认仓外 `file:`/git 包可被 client-modules 装载。已核实的可行性信号：`ctx.loader.entries()` 覆盖 bundles 里的 cordis 插件、`require.resolve('<spec>/package.json')` 可解析 `file:` 安装包——机制上可行。届时路径：`settings.plugin.item` 卡片 + `dsh.client` + tsdown bundle。风险：声明 `dsh.client` 但 bundle 缺失会致 dsh web 启动 loud throw（`ClientPackageCompositionError`）；client-modules 负缓存永不过期，加声明需重启生效。
+- `host.call` / `harness.handle` 是 cordis 动态包（机制 A）专属 RPC，**不存在于 `dsh.client` 装载面**；
+- settings 网关（api-proxy）的 `exposedNamespaces()` 硬编码白名单拒绝第三方命名空间，`~/.dsh/settings.yaml` 不落盘（源码注释：插件自暴露命名空间「is deferred work」）。
+
+按该机制，periscope-dsh 配置停留在 dsh Config（cordis.yml patch + env fallback），不提供 Web UI 配置界面。
+
+### 可行通道：connection RPC channel（2026-08-15 源码调研，未实测）
+
+在真实 dsh 源码（pin `47f9438`）逐环验证，官方 **connection RPC channel**（`@deepseek-ai/dsh-client-connection`）是 browser half 读写配置的正道：
+
+- host 侧 `ctx.connection.rpc.handle(channel, handler, {authority: 'loopback'})` 注册包内私有 channel（如 `/periscope`），handler 直接调 `ctx.settings.update/replace/describe`——**绕开 api-proxy 白名单**（白名单只在网关 handler 内检查，服务直调不存在该层）。
+- browser 侧 `ctx.connection.rpc.call(channel, endpoint, payload)` 经浏览器原生 fetch 同源 POST；`authority: 'loopback'` 走 DNS-rebinding 防护（`isTrustedApiRequest`）。
+- 落盘：`ctx.settings.update` → settings-file provider `writeFileAtomic` 写 `~/.dsh/settings.yaml`，含乐观并发 revision。
+- 官方先例：ui-settings 的 `dsh.client.inject: ['@deepseek-ai/dsh-client-connection']` 即 browser half 读写官方通道的标准用法；llm-pi-ai 用 `installSettingsSection` 注册 settings 命名空间（server 侧配置核心，含 base 层 / 优先级分层）。
+
+**结论**：#31（Web UI 配置卡片）按 connection RPC channel 机制可行。实施前先以最小双 half 包实测往返（改造 spike #32 的即弃包），实测通过后再落地 #33-#36。成本与风险不变：引入 react + tsdown + dsh-client 依赖链，与主仓「零构建零依赖」哲学相悖；dsh 破坏性迭代期该装载面最易变。配置痛点现状形态（cordis.yml / env / snippet / 引导占位符）仍是「不做」时的回退。

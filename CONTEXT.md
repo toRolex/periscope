@@ -41,5 +41,8 @@ _Avoid_: harness（该词已指代 Agent Plugins 兼容客户端，见上）
 桥（bridge adapter）= periscope 在 dsh 的接入层形态：一个声明 image 输入能力的 LlmAdapter，把 ImageBlock 经「下游」视觉端点译成文字后委托给主文本模型（默认 deepseek）。对应 Claude Code 侧的 hook 形态。
 _Avoid_: wrapper、包装器
 
-browser half = dsh 插件的浏览器侧扩展面：package.json 声明 `dsh.client` + tsdown 预构建 client bundle，经 client-modules 装载，向设置页 slot 注册 React 组件。periscope-dsh **未采用**——视觉端点配置走 dsh Config（cordis.yml / env fallback），不做 Web UI 配置界面（理由与重开条件见 ADR 0003「配置面边界」）。
+browser half = dsh 插件的浏览器侧扩展面：package.json 声明 `dsh.client` + tsdown 预构建 client bundle，经 client-modules 装载，向设置页 slot 注册 React 组件。UI 装载与渲染已实测可行（spike #32，机制 B）；读写配置走 connection RPC channel（见该词条），不再经 settings 网关。periscope-dsh 是否提供 Web UI 配置界面见 ADR 0003「配置面边界」。
 _Avoid_: Web UI 插件、前端配置面
+
+connection RPC channel = dsh 官方的 client→host 单向 RPC 通道（`@deepseek-ai/dsh-client-connection`）：host 侧 `ctx.connection.rpc.handle(channel, handler, {authority})` 注册私有 channel，browser 侧 `ctx.connection.rpc.call(channel, endpoint, payload)` 调用。第三方插件用它把自己的 settings 命名空间读写暴露给 browser half——handler 直接调 `ctx.settings.update/replace/describe`，绕开 api-proxy 的 `exposedNamespaces()` 白名单（第三方命名空间不被网关暴露的唯一阻碍）。`authority: 'loopback'` 走 DNS-rebinding 防护。这是 #31（dsh Web UI 可视化配置）走通的关键机制，也是 #32 spike 结论里「包内私有 Remote RPC」重开条件的官方载体。
+_Avoid_: host.call、harness.handle（cordis 动态包专属 RPC，不存在于 dsh.client 装载面）
