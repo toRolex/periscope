@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="periscope —— 给纯文本 coding agent 的视觉桥，把图片译成文字描述">
+  <img src="./assets/readme/hero.svg?v=2" width="100%" alt="periscope —— 给纯文本 coding agent 的视觉桥，把图片译成文字描述">
 </div>
 
 <p align="center">
@@ -36,7 +36,7 @@ periscope 是给纯文本 coding agent 的视觉桥：把图片译成文字描�
 ## 工作机制
 
 <div align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="periscope 工作链路：图片经三协议桥到视觉端点，输出 [Image N] 文字描述，供 Agent Plugins 兼容 harness、Claude Code、dsh 三种接入层消费">
+  <img src="./assets/readme/architecture.svg?v=2" width="100%" alt="periscope 工作链路：图片经三协议桥到视觉端点，输出 [Image N] 文字描述，供 Agent Plugins 兼容 harness、Claude Code、dsh 三种接入层消费">
 </div>
 
 图片 / 路径 / URL 经 periscope 的**三协议桥**送到你的视觉端点（BYOM），得到文字描述后以 `[Image N] 名称: 描述` 的形式交给接入层。三种接入层共享同一条 describe 能力：
