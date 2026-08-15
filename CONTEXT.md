@@ -40,3 +40,6 @@ _Avoid_: harness（该词已指代 Agent Plugins 兼容客户端，见上）
 
 桥（bridge adapter）= periscope 在 dsh 的接入层形态：一个声明 image 输入能力的 LlmAdapter，把 ImageBlock 经「下游」视觉端点译成文字后委托给主文本模型（默认 deepseek）。对应 Claude Code 侧的 hook 形态。
 _Avoid_: wrapper、包装器
+
+browser half = dsh 插件的浏览器侧扩展面：package.json 声明 `dsh.client` + tsdown 预构建 client bundle，经 client-modules 装载，向设置页 slot 注册 React 组件。periscope-dsh **未采用**——视觉端点配置走 dsh Config（cordis.yml / env fallback），不做 Web UI 配置界面（理由与重开条件见 ADR 0003「配置面边界」）。
+_Avoid_: Web UI 插件、前端配置面

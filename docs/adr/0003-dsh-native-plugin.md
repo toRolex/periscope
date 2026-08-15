@@ -39,3 +39,13 @@ deepseek-harness（dsh）为 DeepSeek 官方 Cordis 插件式 agent harness（"�
 - 新增 dsh 插件包（npm + `dsh.bundle` patch 挂 profile），describe 引擎以副本形式并入。
 - CONTEXT.md 增补 dsh / 双宿主 / 桥 术语。
 - 后续切片：dsh 插件骨架（route 注册 + Config）、describe 引擎拷贝、`image/described` 事件、BYOM 翻译接入。按 Q3 约定，本轮不写插件代码。
+
+## 配置面边界与 backlog（2026-08-15 补充）
+
+periscope-dsh 的视觉端点配置停留在 dsh Config（cordis.yml patch + env fallback），**不提供 dsh Web UI 可视化配置界面**。判定依据：
+
+- **dsh Models 页对第三方插件 closed**：`ProviderEditor.layoutOf` 按 settings 命名空间硬编码，仅 `llm-deepseek` / `llm-pi-ai` 有手写表单，其余落 `unknown` 只渲染 hint；`registerConfigurableProviders` 只能把 provider 列入目录，拿不到表单。
+- **要获得 Web UI 表单的唯一路径是 browser half**：React 组件 + package.json `dsh.client` 声明 + tsdown 预构建 client bundle，经 client-modules 装载 + slots 注册 `settings.plugin.item` 卡片。成本是引入 react + tsdown + `@deepseek-ai/dsh-client-*` 依赖链，与主仓"零构建零依赖"哲学相悖；且 dsh 破坏性迭代期该装载面最易变（与决策 6"流沙上打地基"同理）。
+- **配置痛点已被覆盖**：snippet 生成器（#30）+ 未配置时的可操作引导占位符（指出 cordis.yml / env 位置），零 dsh-UI 耦合。
+
+**Backlog（重开条件）**：dsh 冻结 client-module / slot API，且确认仓外 `file:`/git 包可被 client-modules 装载。已核实的可行性信号：`ctx.loader.entries()` 覆盖 bundles 里的 cordis 插件、`require.resolve('<spec>/package.json')` 可解析 `file:` 安装包——机制上可行。届时路径：`settings.plugin.item` 卡片 + `dsh.client` + tsdown bundle。风险：声明 `dsh.client` 但 bundle 缺失会致 dsh web 启动 loud throw（`ClientPackageCompositionError`）；client-modules 负缓存永不过期，加声明需重启生效。
