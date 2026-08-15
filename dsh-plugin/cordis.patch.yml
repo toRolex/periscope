@@ -1,0 +1,22 @@
+# periscope dsh 插件的 bundle patch（dsh.bundle 机制）。
+#
+# 本包 package.json 声明 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`。
+# 用户经 `dsh plugin --profile <name> add <本包>` 安装后，dsh 检测到该声明，把本包名
+# 追加进 profile 的 `dsh.profile.bundles`；下次启动 profile 时，本 patch 作为一层
+# insert 应用，把下面的 periscope-deepseek 插件行插进 cordis 树。cordis 按行 `name`
+# 解析本包（→ package.json main / exports 的插件入口），用插件的 Config schema 校验
+# `config` 段后调用 apply()，注册 periscope-deepseek route。
+#
+# config 段全部可选：视觉端点的 protocol / baseUrl / model 缺省时由 env fallback
+# （PERISCOPE_VISION_PROTOCOL / PERISCOPE_VISION_BASE_URL / PERISCOPE_VISION_MODEL）补齐；
+# apiKey 仅从环境变量读取（apiKeyEnv 命名的变量，默认 PERISCOPE_API_KEY），不写进配置。
+# 本票 #27 只验证配置「解析就绪」，不触发视觉调用（看图翻译归 #28/#29）。
+
+- insert:
+    - id: periscope-deepseek
+      name: 'periscope-dsh'
+      # config:                       # 全部可选；缺省走 env fallback
+      #   protocol: openai            # openai | anthropic | responses
+      #   baseUrl: https://your-vision-endpoint.example.com/v1
+      #   model: your-vision-model
+      #   apiKeyEnv: PERISCOPE_API_KEY  # 承载视觉 key 的环境变量名（默认即此）

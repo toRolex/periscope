@@ -1,13 +1,37 @@
 {
   "name": "periscope-dsh",
   "version": "0.1.0",
-  "description": "periscope 的 dsh（deepseek-harness）原生插件包 —— describe 引擎副本（图片字节输入），与主仓同构的零依赖 tsc && node --test 脚手架",
+  "description": "periscope 的 dsh（deepseek-harness）原生插件包 —— periscope-deepseek route 桥（声明 image 能力、纯文本委托 deepseek）+ describe 引擎副本；与主仓同构的零依赖 tsc && node --test",
   "private": true,
   "type": "commonjs",
-  "main": "dist/core/describe.js",
+  "main": "./dist/bridge/plugin.js",
+  "exports": {
+    ".": "./dist/bridge/plugin.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "dist",
+    "cordis.patch.yml"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "tsc && node --test"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-llm": "^0.0.1-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "typescript": "^5.9.3"
