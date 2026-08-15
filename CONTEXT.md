@@ -3,7 +3,7 @@
 periscope = Claude Code 插件。把图片转成文字，喂给纯文本 coding agent。
 
 下游 = 用户自带的视觉模型端点（openai / anthropic / responses 三种 API 协议；baseUrl / model 由用户自行配置，不绑定任何服务商）。
-接入层 = 宿主 agent 框架的接入机制：Claude Code hook + skill + 独立脚本。
+接入层 = 宿主 agent 框架的接入机制：Claude Code 侧为 hook + skill + 独立脚本；dsh 侧为 LlmAdapter 桥（见「桥」）。
 _Avoid_: CLI、命令分发器
 
 Agent Plugins 1.0.0 = vercel + openai 联合发布的"打包格式"标准。它**不**定义新工具协议——只打包两类已有组件：
@@ -31,3 +31,12 @@ _Avoid_: `periscope doctor`（CLI 命令形态已删除）
 lazy create = config 模块的兜底行为：首次启动无 config 文件 → 写空模板（三协议 baseUrl / model 为空串）；describe 读到空端点时给出可操作报错并引导运行 init。
 
 任务模板 = 内置命名 prompt 文案（如 ocr / table / chart），通过 describe 的 intent 传入模板名时替换默认描述文案。periscope 不声明、不探测模型能力（运行时协商：prompt + 输出容错解析），模型不行由用户自行更换。
+
+双宿主 = periscope 同时以 Claude Code（hook + skill + 独立脚本）与 dsh（LlmAdapter 桥）两种接入层提供同一 describe 能力；两宿主并存演进，describe 引擎保持函数签名一致，接口稳定后抽独立包。
+_Avoid_: 双平台、跨端
+
+dsh（deepseek-harness）= DeepSeek 官方的 Cordis 插件式 agent harness，periscope 的第二宿主。图片以 durable attachment + ImageBlock 进入会话，DeepSeek 文本路由本身不接收图片，需经「桥」翻译。
+_Avoid_: harness（该词已指代 Agent Plugins 兼容客户端，见上）
+
+桥（bridge adapter）= periscope 在 dsh 的接入层形态：一个声明 image 输入能力的 LlmAdapter，把 ImageBlock 经「下游」视觉端点译成文字后委托给主文本模型（默认 deepseek）。对应 Claude Code 侧的 hook 形态。
+_Avoid_: wrapper、包装器
