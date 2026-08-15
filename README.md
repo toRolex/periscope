@@ -3,13 +3,15 @@
 </div>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/toRolex/periscope?style=flat-square&logo=github&color=2e6cc4" alt="GitHub stars" />
-  <img src="https://img.shields.io/github/license/toRolex/periscope?style=flat-square&color=red" alt="License: GPL-3.0" />
+  <img src="https://img.shields.io/github/stars/toRolex/periscope?style=flat-square&logo=github&color=141414&logoColor=B79A5B" alt="GitHub stars" />
+  <img src="https://img.shields.io/github/license/toRolex/periscope?style=flat-square&color=B79A5B" alt="License: GPL-3.0" />
   <img src="https://img.shields.io/badge/Node-%E2%89%A522-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node ≥ 22" />
-  <img src="https://img.shields.io/badge/Agent%20Plugins-1.0.0-blueviolet?style=flat-square" alt="Agent Plugins 1.0.0" />
+  <img src="https://img.shields.io/badge/Agent%20Plugins-1.0.0-141414?style=flat-square" alt="Agent Plugins 1.0.0" />
 </p>
 
 <div align="center">⭐ 如果这个项目对你有帮助，欢迎点个 Star。</div>
+
+<div align="center">🥇 DeepSeek Harness 最好的"眼睛" 🥇</div>
 
 <div align="center">
 
@@ -17,7 +19,7 @@
 
 </div>
 
-periscope 是给纯文本 coding agent 的视觉桥：把图片译成文字描述，让只读文字的 agent 也能看懂截图、报错、表格和架构图。它以 **Agent Plugins 1.0.0** 标准打包，VS Code、ChatGPT/Codex、Kiro、GitHub Copilot、Cursor 等兼容 harness 可以直接加载；Claude Code 与 dsh 不读该格式，因此各带一层专属适配。
+periscope 是给纯文本 coding agent 的视觉桥：把图片译成文字描述，让只读文字的 agent 也能看懂截图、报错、表格和架构图。它以 **Agent Plugins 1.0.0** 标准打包，兼容 harness 可直接加载；Claude Code 与 dsh 不读该格式，因此各带一层专属适配。
 
 > [!NOTE]
 > **为什么有两个专属适配？**
@@ -25,11 +27,11 @@ periscope 是给纯文本 coding agent 的视觉桥：把图片译成文字描�
 
 ## 特性
 
-- **接入任意 agent** —— Agent Plugins 标准插件，兼容 harness 直接加载，Claude Code / dsh 单独适配
-- **BYOM 三协议** —— openai / anthropic / responses 按需切换，视觉模型自带，不绑定任何服务商
-- **零构建零依赖** —— `dist/` 随仓库提交，Node ≥ 22 直接跑，不装 TypeScript、不跑 build
-- **绝不中断会话** —— 端点故障降级 `[Image N] 描述不可用` 占位符，hook 始终放行、桥绝不抛错
-- **本地缓存** —— 同图命中缓存，不重复请求视觉端点
+- **接入任意 agent** — Agent Plugins 标准插件，兼容 harness 直接加载，Claude Code / dsh 单独适配
+- **BYOM 三协议** — openai / anthropic / responses 按需切换，视觉模型自带，不绑定任何服务商
+- **零构建零依赖** — `dist/` 随仓库提交，Node ≥ 22 直接跑，不装 TypeScript、不跑 build
+- **绝不中断会话** — 端点故障降级 `[Image N] 描述不可用` 占位符，hook 始终放行、桥绝不抛错
+- **本地缓存** — 同图命中缓存，不重复请求视觉端点
 
 ## 工作机制
 
@@ -49,7 +51,7 @@ periscope 是给纯文本 coding agent 的视觉桥：把图片译成文字描�
 
 ### 前置要求
 
-- **Node.js ≥ 22** —— 仅独立脚本方式需要；作为插件使用无需安装任何依赖
+- **Node.js ≥ 22** — 仅独立脚本方式需要；作为插件使用无需安装任何依赖
 
 ### Claude Code
 
