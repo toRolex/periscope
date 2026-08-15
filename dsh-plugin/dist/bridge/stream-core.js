@@ -15,12 +15,14 @@ export function visionEndpointReady(vision) {
     return vision.baseUrl.trim() !== '' && vision.model.trim() !== '';
 }
 /**
- * 端点未配置时的可操作引导占位符（指出 cordis.yml / env 两个配置位置）。
+ * 端点未配置时的可操作引导占位符（指出 settings / cordis.yml / env 三个配置位置，优先级 settings > cordis.yml > env）。
  * 与「描述不可用」（下游故障/超时）刻意区分：未配置是可操作的用户引导，不是运行时故障。
  */
-export const ENDPOINT_NOT_CONFIGURED_GUIDANCE = '视觉端点未配置：请在 dsh profile 的 cordis.yml 为 periscope-deepseek 插件配置 protocol/baseUrl/model' +
-    '（或 export PERISCOPE_VISION_PROTOCOL / PERISCOPE_VISION_BASE_URL / PERISCOPE_VISION_MODEL）；' +
-    'apiKey 仅从环境变量读取（默认 PERISCOPE_API_KEY，或 apiKeyEnv 指定的变量）。配置后重发即可看图';
+export const ENDPOINT_NOT_CONFIGURED_GUIDANCE = '视觉端点未配置：请按任一来源配置（优先级 settings > cordis.yml > env）——手改 ~/.dsh/settings.yaml 的' +
+    ' periscope: 段（protocol/baseUrl/model/apiKeyEnv），或在 dsh profile 的 cordis.yml 为 periscope-deepseek' +
+    ' 插件配置 protocol/baseUrl/model，或 export PERISCOPE_VISION_PROTOCOL / PERISCOPE_VISION_BASE_URL /' +
+    ' PERISCOPE_VISION_MODEL；apiKey 仅从环境变量读取（默认 PERISCOPE_API_KEY，或 apiKeyEnv 指定的变量）。' +
+    '配置后重发即可看图';
 /** ResolvedVisionConfig → describe 引擎的 PeriscopeConfig：端点放进激活协议段，其余协议段留空。 */
 export function toPeriscopeConfig(vision) {
     const endpoint = { baseUrl: vision.baseUrl, model: vision.model };

@@ -44,3 +44,59 @@ export function resolveVisionConfig(input = {}, env = {}) {
     const apiKey = firstPresent(env[apiKeyEnv]) ?? '';
     return { protocol, baseUrl, model, apiKeyEnv, apiKey };
 }
+/**
+ * 归一化 settings 命名空间读出的值 → VisionConfigInput：只保留非空白字段，
+ * 空白/缺省视为未配置，回落到更低优先级来源（cordis.yml / env）。
+ * 零 dsh 耦合：不感知 dsh 运行时，仅做「非空筛选」，与 resolveVisionConfig 的
+ * firstPresent 判定一致（空白串视为未配置）。
+ */
+export function normalizeSettingsSection(section) {
+    if (section === undefined || section === null)
+        return {};
+    const out = {};
+    const protocol = firstPresent(section.protocol);
+    if (protocol !== undefined)
+        out.protocol = protocol;
+    const baseUrl = firstPresent(section.baseUrl);
+    if (baseUrl !== undefined)
+        out.baseUrl = baseUrl;
+    const model = firstPresent(section.model);
+    if (model !== undefined)
+        out.model = model;
+    const apiKeyEnv = firstPresent(section.apiKeyEnv);
+    if (apiKeyEnv !== undefined)
+        out.apiKeyEnv = apiKeyEnv;
+    return out;
+}
+/**
+ * 合并 settings 归一化输入与 cordis.yml 段为单个 VisionConfigInput：settings 逐字段
+ * 优先，settings 缺省/空白时回落 cordis；两者皆缺省则该字段留空，交 resolveVisionConfig
+ * 走 env fallback。不改写入参（纯函数）。
+ */
+export function mergeVisionInputs(cordis, settings) {
+    const merged = {};
+    const protocol = firstPresent(settings.protocol, cordis.protocol);
+    if (protocol !== undefined)
+        merged.protocol = protocol;
+    const baseUrl = firstPresent(settings.baseUrl, cordis.baseUrl);
+    if (baseUrl !== undefined)
+        merged.baseUrl = baseUrl;
+    const model = firstPresent(settings.model, cordis.model);
+    if (model !== undefined)
+        merged.model = model;
+    const apiKeyEnv = firstPresent(settings.apiKeyEnv, cordis.apiKeyEnv);
+    if (apiKeyEnv !== undefined)
+        merged.apiKeyEnv = apiKeyEnv;
+    return merged;
+}
+/**
+ * 三来源汇入的视觉端点解析：settings 命名空间（user 层）> cordis.yml（base 层）> env fallback。
+ * settingsSection 为 settings 命名空间读出的已解析段（installSettingsSection 的 setSource 注入，
+ * user 层已叠在 base 层=cordis.yml entry 之上，故与 cordis 再合并是幂等覆盖；可能缺省/含空白），
+ * 先归一化为 VisionConfigInput，再与 cordis.yml 逐字段合并，最后交 resolveVisionConfig 走 env
+ * fallback 与 protocol 校验。apiKey 仅从 apiKeyEnv 命名的环境变量读取——settings/cordis 均无法
+ * 注入字面 key。
+ */
+export function resolveVisionConfigWithSettings(cordis = {}, settingsSection = null, env = {}) {
+    return resolveVisionConfig(mergeVisionInputs(cordis, normalizeSettingsSection(settingsSection)), env);
+}

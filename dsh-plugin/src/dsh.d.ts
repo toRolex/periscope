@@ -114,6 +114,8 @@ declare module '@deepseek-ai/dsh-llm' {
 
 declare module '@deepseek-ai/cordis' {
   import type { LlmService } from '@deepseek-ai/dsh-llm';
+  import type { SettingsProvider } from '@deepseek-ai/dsh-settings';
+  import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection';
 
   /** 日志面（桥接壳用于诊断，最小化）。 */
   export interface Logger {
@@ -132,15 +134,22 @@ declare module '@deepseek-ai/cordis' {
   }
 
   /**
-   * cordis 插件上下文。llm / attachments / logger 为源码核实的服务挂点。
-   * 会话服务经通用 get('sessions') 逃逸口取（推断挂点，见 plugin.ts 注释——手工 E2E 首要核实地），
-   * 故此处不声明 Context.sessions 字段，只用已核实的 get(name)。
+   * cordis 插件上下文。llm / attachments / logger / settings / connection 为源码核实的服务挂点
+   * （settings / connection 经 inject 可选挂载，见 #33：installSettingsSection 与 connection RPC）。
+   * 会话服务经通用 get('sessions') 逃逸口取（推断挂点，见 plugin.ts 注释——手工 E2E 首要核实地）。
    */
   export class Context {
     llm: LlmService;
     logger: Logger;
     attachments: AttachmentStore;
+    settings: SettingsProvider;
+    connection: HostConnectionHandle;
     get(name: string): unknown;
+    /**
+     * 依赖服务就绪后运行回调（cordis 源码核实的注入面，installSettingsSection 也用它）。
+     * 最小面：数组形式的服务名；回调收注入后的 scoped Context。
+     */
+    inject(deps: readonly string[], callback: (ctx: Context) => void): unknown;
   }
 }
 
@@ -203,4 +212,111 @@ declare module '@deepseek-ai/schemastery' {
 
   const Schema: SchemaStatic;
   export default Schema;
+}
+
+declare module '@deepseek-ai/dsh-settings' {
+  import type { Context } from '@deepseek-ai/cordis';
+
+  /** settings 命名空间品牌（小写 kebab-case，如 `periscope`）。 */
+  export type SettingsNamespace = string & { readonly __settingsNamespace?: unique symbol };
+
+  /** 把原始字符串品牌化为 SettingsNamespace；不匹配 `^[a-z][a-z0-9-]*$` 时抛 TypeError。 */
+  export function settingsNamespace(value: string): SettingsNamespace;
+
+  /** installSettingsSection 的消费方钩子。 */
+  export interface SettingsSectionHooks<T> {
+    /** 接收当前配置来源：settings 作用域就位时为解析后的作用域，否则为 composition entry。 */
+    setSource(current: () => T): void;
+    /** attach / detach / 已提交变更后重新裁决任何派生事实。 */
+    onChange(): void;
+    /** 拒绝一个 schema 无法表达的不可服务 section（可选）。 */
+    validate?(value: T): void;
+  }
+
+  /** 一个已注册命名空间的 owner 面。 */
+  export interface SettingsScope<T> {
+    /** 当前解析值：schema 默认 → base 层 → user 层。 */
+    get(): T;
+    watch(callback: (next: T, prev: T) => void | Promise<void>): () => void;
+    /** 合并 patch 进 user 层并持久化。 */
+    update(patch: object): Promise<void>;
+    /** 整体替换 user 层；缺省 key 重新继承 base/schema 默认。 */
+    replace(section: object): Promise<void>;
+  }
+
+  /** describe() 返回的一个命名空间描述（配置面视角的最小面）。 */
+  export interface SettingsDescriptor {
+    ns: SettingsNamespace;
+    schema: unknown;
+    /** 当前解析值。 */
+    value: unknown;
+    /** 该描述读取时刻的 raw user section revision（写回作 expectedRevision）。 */
+    revision: number;
+    base?: unknown;
+    user?: unknown;
+    applies: 'live' | 'restart';
+    secrets?: unknown[];
+  }
+
+  /**
+   * settings 服务（user-settings capability seam 的 provider）。register 注册命名空间
+   * schema；update/replace 写 user 层并持久化；describe 枚举已注册命名空间。
+   */
+  export class SettingsProvider {
+    get(ns: SettingsNamespace): unknown;
+    update(ns: SettingsNamespace, patch: object, expectedRevision?: number): Promise<void>;
+    replace(ns: SettingsNamespace, section: object, expectedRevision?: number): Promise<void>;
+    describe(options?: { redactSecrets?: boolean }): SettingsDescriptor[];
+  }
+
+  /**
+   * 安装 canonical 可选 settings 消费方接线：settings 服务存在时注册 ns（entry 为 base 层、
+   * 写入为 user 层），并把 source 指到解析后的作用域；服务卸载时回退到 entry。注册骑在
+   * scoped fiber 上，故无 settings 服务时本函数什么也不跑。
+   */
+  export function installSettingsSection<T>(
+    ctx: Context,
+    ns: SettingsNamespace,
+    schema: unknown,
+    entry: T,
+    hooks: SettingsSectionHooks<T>,
+  ): void;
+}
+
+declare module '@deepseek-ai/dsh-client-connection' {
+  /** RPC 结果面（对齐 @deepseek-ai/dsh-host-apiproxy/api 的 RpcResult<T> 最小契约）。 */
+  export type RpcResult<T> = { ok: true; value: T } | { ok: false; error: { code: string; message: string; details: unknown } };
+
+  /** 一个逻辑 RPC channel 的信任策略。 */
+  export type ConnectionRpcAuthority = 'trusted-host' | 'loopback';
+
+  /** 一个逻辑 RPC channel 的注册选项。 */
+  export interface ConnectionRpcHandlerOptions {
+    /** 本 channel 每个端点接受的浏览器 authority。 */
+    readonly authority: ConnectionRpcAuthority;
+  }
+
+  /** Connection 解码传输信封后调用的 handler。 */
+  export type ConnectionRpcHandler = (
+    endpoint: string,
+    payload: unknown,
+    signal: AbortSignal,
+  ) => Promise<RpcResult<unknown>>;
+
+  /** Host 端逻辑 RPC channel 注册表。 */
+  export interface HostConnectionRpc {
+    /**
+     * 注册一个绝对 channel 前缀与其信任策略。
+     * @param channel - 绝对逻辑 channel，如 `/periscope`。
+     * @param handler - 解码后的 endpoint handler，返回既有 RPC result 形状。
+     * @param options - channel 信任策略。
+     * @returns 移除该 channel 及其物理路由的异步 disposer。
+     */
+    handle(channel: string, handler: ConnectionRpcHandler, options: ConnectionRpcHandlerOptions): () => Promise<void>;
+  }
+
+  /** Host `ctx.connection` 的形状。 */
+  export interface HostConnectionHandle {
+    readonly rpc: HostConnectionRpc;
+  }
 }

@@ -14,23 +14,24 @@ import { buildProviderInfo, listRouteModels, resolveRouteModel, toDelegateOption
  * 可测的纯逻辑都在 route.ts / vision-config.ts / stream-core.ts。
  */
 export class PeriscopeBridgeAdapter extends LlmAdapter {
-    /** 解析好的视觉端点配置（cordis.yml + env fallback，apiKey 仅从 env）。 */
-    vision;
+    /** 解析视觉端点配置的函数面（settings/cordis/env 三来源，每次请求实时解析）。 */
+    resolveVision;
     delegate;
     readImage;
     sink;
     /** content-addressed 描述缓存（attachmentId → 描述），跨 stream() 调用共享。 */
     cache;
-    /** 由 vision 构造的 describeImage（未配置 → 引导占位符；已配置 → describe 引擎，含超时降级）。 */
+    /** 按最新 vision 构造的 describeImage（未配置 → 引导占位符；已配置 → describe 引擎，含超时降级）。 */
     describeImage;
     constructor(options) {
         super();
-        this.vision = options.vision;
+        this.resolveVision = options.resolveVision;
         this.delegate = options.delegate;
         this.readImage = options.readImage;
         this.sink = options.sink;
         this.cache = options.cache ?? new Map();
-        this.describeImage = buildDescribeImage(options.vision, describe);
+        // 每次调用按最新 vision 构造 describeImage：settings/cordis/env 变更立即生效。
+        this.describeImage = (bytes, intent) => buildDescribeImage(this.resolveVision(), describe)(bytes, intent);
     }
     /** providerInfo：id 等于 route 键，name 供 Web UI 选择器分组展示。 */
     providerInfo(provider) {

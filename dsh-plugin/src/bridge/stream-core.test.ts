@@ -51,7 +51,9 @@ test('visionEndpointReady：baseUrl 或 model 空白/空白串 → 未就绪', (
 
 // ── ENDPOINT_NOT_CONFIGURED_GUIDANCE ─────────────────────────────────────────
 
-test('引导占位符指出 cordis.yml 与 env 两个配置位置', () => {
+test('引导占位符指出 settings/cordis.yml/env 三个配置位置（#33 新增 settings 来源）', () => {
+  assert.match(ENDPOINT_NOT_CONFIGURED_GUIDANCE, /settings\.yaml/, '应指出 settings.yaml periscope 段');
+  assert.match(ENDPOINT_NOT_CONFIGURED_GUIDANCE, /periscope/, '应提及 periscope 命名空间');
   assert.match(ENDPOINT_NOT_CONFIGURED_GUIDANCE, /cordis\.yml/);
   assert.match(ENDPOINT_NOT_CONFIGURED_GUIDANCE, /PERISCOPE_VISION_BASE_URL/);
   assert.match(ENDPOINT_NOT_CONFIGURED_GUIDANCE, /PERISCOPE_API_KEY/, '应指出 apiKey 的 env 位置');

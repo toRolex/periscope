@@ -1,11 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
+import type { SettingsProvider } from '@deepseek-ai/dsh-settings';
+import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings';
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm';
 import type { SessionService } from '@deepseek-ai/dsh-session';
 import { PeriscopeBridgeAdapter } from './adapter.js';
 import { PERISCOPE_PROVIDER } from './route.js';
 import { makeImageDescribedSink } from './stream-core.js';
-import { VisionConfigInput, resolveVisionConfig } from './vision-config.js';
+import { ResolvedVisionConfig, VisionConfigInput, resolveVisionConfigWithSettings } from './vision-config.js';
+import { PeriscopeSettingsPort, makePeriscopeRpcHandler } from './settings-rpc.js';
 
 /**
  * periscope 的 dsh 原生插件入口（cordis 插件形态，对齐官方 llm-deepseek 适配器的导出形状）。
@@ -13,6 +16,15 @@ import { VisionConfigInput, resolveVisionConfig } from './vision-config.js';
  * cordis 加载本模块时读取这四个命名导出：name / inject / Config（schemastery schema，
  * 校验 cordis.yml 里本插件的配置段）/ apply（入口，注册 periscope-deepseek route）。
  * 另附 default 导出同一插件对象，规避 ESM 宿主 import CommonJS 时命名导出探测的边界。
+ *
+ * 视觉端点配置三来源（#33，server 侧配置核心，零图形 UI）：
+ *   settings 命名空间 `periscope`（user 层，settings.yaml / 后续卡片写入）
+ *   > cordis.yml entry（base 层，插件配置段）> env fallback（PERISCOPE_VISION_*）。
+ *   优先级内建于 installSettingsSection 分层 + vision-config 纯函数的逐字段合并；
+ *   apiKey 仍仅从 apiKeyEnv 命名的环境变量读取（字面 key 不是配置值）。
+ *   另注册 connection RPC channel `/periscope`（describe 读 / update 写，authority:loopback），
+ *   供后续卡片经 ctx.connection.rpc.call 读写——host handler 服务直调 ctx.settings，
+ *   绕开 api-proxy 的 exposedNamespaces() 白名单（spike #32 实证网关拒第三方命名空间）。
  *
  * ──────────────────────────── 手工 E2E 验收（无法 CI 自动化，需真实 dsh 宿主） ────────────────────────────
  * 前置：本机已装 dsh CLI（@deepseek-ai/dsh）、pnpm；deepseek 主文本路由可用（DEEPSEEK_API_KEY 已 export，
@@ -24,10 +36,13 @@ import { VisionConfigInput, resolveVisionConfig } from './vision-config.js';
  * 2) 安装到 web profile：`dsh plugin --profile web add file:<本包绝对路径>`（dsh 因本包 package.json
  *    声明 `dsh.bundle.patch` 而把包名追加进 `dsh.profile.bundles`；可用 `dsh --profile web --dump-config`
  *    复查组合后的树里出现了 periscope-deepseek 行）。
- * 3) 配置视觉端点（二选一；apiKey 仅从 env，不写进配置）：
- *    - 方式 A（cordis.yml）：profile 的 cordis.patch.yml 给 periscope-deepseek 行加 config：
+ * 3) 配置视觉端点（三来源，apiKey 仅从 env，不写进配置）：
+ *    - 方式 A（settings 命名空间，#33）：手改 `~/.dsh/settings.yaml` 的 `periscope:` 段
+ *      （protocol / baseUrl / model / apiKeyEnv，user 层优先级最高）。独立验证：改值 → 重启
+ *      dsh web → 发图 → 描述走新端点（无需卡片，纯 server 侧）。
+ *    - 方式 B（cordis.yml）：profile 的 cordis.patch.yml 给 periscope-deepseek 行加 config：
  *      protocol / baseUrl / model（apiKeyEnv 可选）。
- *    - 方式 B（env fallback）：export PERISCOPE_VISION_PROTOCOL / PERISCOPE_VISION_BASE_URL /
+ *    - 方式 C（env fallback）：export PERISCOPE_VISION_PROTOCOL / PERISCOPE_VISION_BASE_URL /
  *      PERISCOPE_VISION_MODEL；apiKey：export PERISCOPE_API_KEY=sk-...（或 apiKeyEnv 指定的变量）。
  * 4) 启动 Web UI：`dsh web`，打开浏览器会话，模型选择器选中「periscope（看图桥 → deepseek）」下的模型。
  *
@@ -42,6 +57,12 @@ import { VisionConfigInput, resolveVisionConfig } from './vision-config.js';
  *    配置位置），落 log、不抛错、不中断会话。
  * 【验收点 5：缓存命中】同一张图再发一次（或翻历史触发重放）：观察视觉端点访问日志，不重复请求下游，
  *    描述仍落 log（内容寻址 attachmentId 作缓存 key，进程内共享）。
+ * 【验收点 6：settings 第三来源（#33）】手改 `~/.dsh/settings.yaml` 的 `periscope:` 段（如改 baseUrl），
+ *    重启 dsh web 后发图：请求走新端点（优先级 settings > cordis.yml > env）。settings 服务缺省时
+ *    （无 settings 命名空间注册）行为回落 cordis.yml + env，不抛错。
+ * 【验收点 7：connection RPC channel（#33）】后续卡片经 `ctx.connection.rpc.call('/periscope', 'describe')`
+ *    读到当前存储值；`update` 合并写 user 层并持久化到 settings.yaml（authority:loopback）。
+ *    本票只注册 host 侧 handler，浏览器侧调用归后续卡片票。
  *
  * ── 已知限制与首要核实地（务必读）────────────────────────────────────────────────────────────
  * A. 【image/described 重启拒载 · dsh 缺口】本插件经 declaration merging 扩展 SessionEventMap 后
@@ -58,6 +79,8 @@ import { VisionConfigInput, resolveVisionConfig } from './vision-config.js';
  *    （Uint8Array/Buffer）；若真实返回更丰富的对象（如 { bytes, mediaType }），需在 plugin.ts 取 .bytes。
  * D. 【mimeType 未透传】桥接 seam 只把字节交给 describe，图片真实 mediaType 未随字节透传，describe
  *    默认按 image/png 构造 data URL；对非 PNG 源图，若下游端点挑剔需在后续切片把 mediaType 接入 seam。
+ * E. 【settings/connection 服务可选】settings 与 connection 均为可选服务（ctx.inject 挂载，见 apply）：
+ *    缺省时插件仍以 cordis.yml + env 工作，settings 命名空间与 /periscope RPC 通道随之不可用。
  * ───────────────────────────────────────────────────────────────────────────────────────────────
  */
 
@@ -66,6 +89,9 @@ export const name = 'periscope-deepseek';
 
 /** 依赖的 cordis 服务：llm（注册适配器 + 委托主文本模型都要它）。attachments/sessions 经 ctx 挂点取。 */
 export const inject = ['llm'];
+
+/** settings 命名空间（#33）：user 层（settings.yaml / 卡片写入）> base 层（cordis.yml entry）> env fallback。 */
+export const NS = settingsNamespace('periscope');
 
 /**
  * 插件配置类型：视觉端点配置项（protocol / baseUrl / model / apiKeyEnv），全部可选。
@@ -85,13 +111,21 @@ export const Config = Schema.object({
 });
 
 /**
- * 插件入口：解析视觉端点配置 → 构造桥接适配器（注入委托 / 读图 / image/described 落点）
- * → 注册 periscope-deepseek route。stream() 内的 ImageBlock 翻译与降级逻辑见 adapter.ts / stream-core.ts。
+ * 插件入口：解析视觉端点配置（settings 命名空间 > cordis.yml > env 三来源，实时解析）
+ * → 构造桥接适配器（注入委托 / 读图 / image/described 落点）→ 注册 periscope-deepseek route。
+ * → 注册 settings 命名空间（installSettingsSection）与 connection RPC channel（/periscope）。
+ * stream() 内的 ImageBlock 翻译与降级逻辑见 adapter.ts / stream-core.ts。
  */
 export function apply(ctx: Context, config: Config): void {
-  const vision = resolveVisionConfig(config, process.env);
+  // 当前生效的 settings 段：installSettingsSection 的 setSource 注入「解析后的 settings 值」
+  // （user 层 > base 层=cordis.yml entry）；settings 服务缺省时回落 cordis.yml entry。
+  // resolveVision 每次调用实时解析三来源，故 settings/cordis/env 变更对下一次看图立即生效。
+  let currentSettings = (): Config => config;
+  const resolveVision = (): ResolvedVisionConfig =>
+    resolveVisionConfigWithSettings(config, currentSettings(), process.env);
+
   const adapter = new PeriscopeBridgeAdapter({
-    vision,
+    resolveVision,
     delegate: (options: GenerateOptions): AsyncIterable<StreamChunk> => ctx.llm.stream(options),
     readImage: (attachment: unknown): Promise<Uint8Array> => ctx.attachments.readImage(attachment),
     sink: makeImageDescribedSink({
@@ -105,6 +139,54 @@ export function apply(ctx: Context, config: Config): void {
     }),
   });
   ctx.llm.registerAdapter([PERISCOPE_PROVIDER], adapter);
+
+  // settings 命名空间注册（#33）：cordis.yml entry 作 base 层、settings 写入为 user 层。
+  // installSettingsSection 处理好 settings 服务卸载 / 光纤卸载时的回退与变更通知，不手写样板。
+  installSettingsSection<Config>(ctx, NS, Config, config, {
+    setSource: (source) => {
+      currentSettings = source;
+    },
+    onChange: () => {
+      // 无需重注册 route：adapter 每次请求实时解析 vision；此处仅诊断日志。
+      ctx.logger.info('[periscope] settings section changed; vision config re-resolves on next request');
+    },
+  });
+
+  // connection RPC channel（#33）：host handler 服务直调 ctx.settings，绕开网关白名单。
+  // connection 服务可选：缺省时该通道不注册，插件其余功能不受影响。
+  registerPeriscopeRpc(ctx);
+}
+
+/** 注册 /periscope connection RPC channel：describe 读当前存储值 / update 合并写 user 层。 */
+function registerPeriscopeRpc(ctx: Context): void {
+  ctx.inject(['connection'], (connectionCtx) => {
+    const settings = (): SettingsProvider | undefined =>
+      connectionCtx.get('settings') as SettingsProvider | undefined;
+    const port: PeriscopeSettingsPort = {
+      read: () => {
+        const provider = settings();
+        if (provider === undefined) return undefined;
+        const descriptor = provider.describe({ redactSecrets: true }).find((d) => d.ns === NS);
+        if (descriptor === undefined) return undefined;
+        return {
+          value: (descriptor.value ?? {}) as Record<string, unknown>,
+          ...(descriptor.user === undefined ? {} : { user: descriptor.user as Record<string, unknown> }),
+          ...(descriptor.base === undefined ? {} : { base: descriptor.base as Record<string, unknown> }),
+          revision: descriptor.revision,
+        };
+      },
+      update: async (patch, expectedRevision) => {
+        const provider = settings();
+        if (provider === undefined) throw new Error('settings 服务不可用：periscope 命名空间未注册');
+        await provider.update(NS, patch, expectedRevision);
+      },
+    };
+    connectionCtx.connection.rpc.handle(
+      '/periscope',
+      makePeriscopeRpcHandler(port),
+      { authority: 'loopback' },
+    );
+  });
 }
 
 /** default 导出同一插件对象（CommonJS 被 ESM 宿主 import 时的兜底，见上注释）。 */

@@ -32,8 +32,11 @@ export type StreamDelegate = (options: GenerateOptions) => AsyncIterable<StreamC
 export type ReadImage = (attachment: unknown) => Promise<Uint8Array>;
 
 export interface PeriscopeBridgeOptions {
-  /** 解析好的视觉端点配置。 */
-  vision: ResolvedVisionConfig;
+  /**
+   * 解析视觉端点配置的函数面：每次请求实时解析——settings 命名空间 / cordis.yml / env
+   * 变更后无需重启即对下一次看图生效。
+   */
+  resolveVision: () => ResolvedVisionConfig;
   /** 委托函数（宿主注入 ctx.llm.stream）。 */
   delegate: StreamDelegate;
   /** 读图字节（宿主注入 ctx.attachments.readImage）。 */
@@ -59,25 +62,26 @@ export interface PeriscopeBridgeOptions {
  * 可测的纯逻辑都在 route.ts / vision-config.ts / stream-core.ts。
  */
 export class PeriscopeBridgeAdapter extends LlmAdapter {
-  /** 解析好的视觉端点配置（cordis.yml + env fallback，apiKey 仅从 env）。 */
-  readonly vision: ResolvedVisionConfig;
+  /** 解析视觉端点配置的函数面（settings/cordis/env 三来源，每次请求实时解析）。 */
+  private readonly resolveVision: () => ResolvedVisionConfig;
 
   private readonly delegate: StreamDelegate;
   private readonly readImage: ReadImage;
   private readonly sink: ImageDescribedSink;
   /** content-addressed 描述缓存（attachmentId → 描述），跨 stream() 调用共享。 */
   private readonly cache: Map<string, string>;
-  /** 由 vision 构造的 describeImage（未配置 → 引导占位符；已配置 → describe 引擎，含超时降级）。 */
+  /** 按最新 vision 构造的 describeImage（未配置 → 引导占位符；已配置 → describe 引擎，含超时降级）。 */
   private readonly describeImage: (bytes: Uint8Array, intent?: string) => Promise<string>;
 
   constructor(options: PeriscopeBridgeOptions) {
     super();
-    this.vision = options.vision;
+    this.resolveVision = options.resolveVision;
     this.delegate = options.delegate;
     this.readImage = options.readImage;
     this.sink = options.sink;
     this.cache = options.cache ?? new Map<string, string>();
-    this.describeImage = buildDescribeImage(options.vision, describe);
+    // 每次调用按最新 vision 构造 describeImage：settings/cordis/env 变更立即生效。
+    this.describeImage = (bytes, intent) => buildDescribeImage(this.resolveVision(), describe)(bytes, intent);
   }
 
   /** providerInfo：id 等于 route 键，name 供 Web UI 选择器分组展示。 */
