@@ -12,7 +12,17 @@ interface ByteBuf extends Uint8Array {
 
 declare const process: {
   env: Record<string, string | undefined>;
+  argv: string[];
+  stdout: Writable;
+  stderr: Writable;
+  exitCode: number | string | undefined;
+  execPath: string;
 };
+
+declare const __dirname: string;
+
+declare const require: ((id: string) => any) & { main?: { exports: unknown } };
+declare const module: { exports: unknown; main?: unknown };
 
 declare const Buffer: {
   from(data: string, encoding?: 'base64' | 'utf8'): ByteBuf;
@@ -54,6 +64,23 @@ declare module 'node:http' {
   export function createServer(
     handler?: (req: unknown, res: unknown) => void,
   ): any;
+}
+
+declare module 'node:child_process' {
+  export function execFileSync(
+    file: string,
+    args?: string[],
+    options?: { encoding?: string; env?: Record<string, string | undefined>; cwd?: string },
+  ): string;
+}
+
+declare module 'node:stream' {
+  export class Writable {
+    constructor(
+      opts?: { write?(chunk: ByteBuf, enc: string, cb: () => void): void } | undefined,
+    );
+    write(chunk: string): boolean;
+  }
 }
 
 declare module 'node:test' {

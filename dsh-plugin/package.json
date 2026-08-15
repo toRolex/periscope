@@ -5,6 +5,9 @@
   "private": true,
   "type": "commonjs",
   "main": "./dist/bridge/plugin.js",
+  "bin": {
+    "periscope-dsh-snippet": "./dist/snippet/cli.js"
+  },
   "exports": {
     ".": "./dist/bridge/plugin.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
@@ -21,7 +24,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node --test"
+    "test": "tsc && node --test",
+    "snippet": "node dist/snippet/cli.js"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
