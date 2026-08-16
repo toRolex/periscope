@@ -30,8 +30,8 @@ export class PeriscopeBridgeAdapter extends LlmAdapter {
         this.readImage = options.readImage;
         this.sink = options.sink;
         this.cache = options.cache ?? new Map();
-        // 每次调用按最新 vision 构造 describeImage：settings/cordis/env 变更立即生效。
-        this.describeImage = (bytes, intent) => buildDescribeImage(this.resolveVision(), describe)(bytes, intent);
+        // 每次调用按最新 vision 构造 describeImage：settings/cordis/env 变更立即生效；apiKey 异步解析。
+        this.describeImage = async (bytes, intent) => buildDescribeImage(await this.resolveVision(), describe)(bytes, intent);
     }
     /** providerInfo：id 等于 route 键，name 供 Web UI 选择器分组展示。 */
     providerInfo(provider) {

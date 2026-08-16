@@ -127,10 +127,20 @@ declare module '@deepseek-ai/cordis' {
   /**
    * durable attachment 服务（issue #25 源码核实：cordis Service 挂点，抽象面四件
    * imageLimits / validateImage / saveImage / readImage）。本票只用 readImage 按 ref 取字节。
-   * readImage(ref, signal?) 返回图片字节（Buffer 是 Uint8Array 子类，故声明为 Uint8Array）。
+   * 源码核实：readImage(ref, signal?) 返回 StoredImageAttachment { ref, data }（data 为字节），
+   * 不是裸 Uint8Array——本声明只声明本插件消费的最小面 { data }，壳层取 .data 后注入 seam。
    */
   export interface AttachmentStore {
-    readImage(ref: unknown, signal?: unknown): Promise<Uint8Array>;
+    readImage(ref: unknown, signal?: unknown): Promise<{ data: Uint8Array }>;
+  }
+
+  /**
+   * dsh 凭据服务（@deepseek-ai/dsh-credentials，经 ctx.get('credentials') 逃逸口取；可选）。
+   * 本插件只消费 resolve：按 apiKeyEnv 解析出字面 key，先于 process.env 兜底（与 llm-deepseek 适配器同策略）。
+   * ResolvedCredential 字段很多，本声明只声明本插件消费的最小面 { value }。
+   */
+  export interface CredentialsService {
+    resolve(ref: string): Promise<{ value: string } | undefined>;
   }
 
   /**

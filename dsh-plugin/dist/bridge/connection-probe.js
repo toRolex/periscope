@@ -12,8 +12,10 @@ import { getProtocol } from '../protocols/index.js';
  * 结果折叠为 ConnectionProbeResult：可达 / 不可达（未配置 / 网络层 / HTTP 层），
  * 不可达必带指向 baseUrl / apiKeyEnv / 网络的可操作提示。任何失败都不抛错。
  */
-/** 探测请求用的最小图片（1x1 透明 PNG）：只验证端点可达与请求形状，不消耗真实图片。 */
-const PROBE_IMAGE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+/** 探测请求用的最小图片（1x1 不透明纯色 PNG）：只验证端点可达与请求形状，不消耗真实图片。
+ * 刻意不透明：MiniMax 等上游的内容安全会把透明空白图误判为 sensitive 拒掉（实测 1x1 透明 → HTTP 500，
+ * 不透明 → HTTP 200），故探针图不用透明 PNG。 */
+const PROBE_IMAGE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOQS7kDAAICAV9Hfkh8';
 /** 探测用极简 prompt（尽量轻，端点只需返回任意 2xx 即判定可达）。 */
 const PROBE_INTENT = 'ping';
 /**
@@ -24,7 +26,7 @@ const PROBE_INTENT = 'ping';
 export function makeConnectionProbe(options) {
     const transport = options.transport ?? defaultTransport;
     return async () => {
-        const config = options.resolve();
+        const config = await options.resolve();
         if (config.baseUrl.trim() === '' || config.model.trim() === '') {
             return {
                 ok: false,

@@ -34,9 +34,9 @@ export type ReadImage = (attachment: unknown) => Promise<Uint8Array>;
 export interface PeriscopeBridgeOptions {
   /**
    * 解析视觉端点配置的函数面：每次请求实时解析——settings 命名空间 / cordis.yml / env
-   * 变更后无需重启即对下一次看图生效。
+   * 变更后无需重启即对下一次看图生效。async：apiKey 可能需经 dsh 凭据库（ctx.credentials）解析。
    */
-  resolveVision: () => ResolvedVisionConfig;
+  resolveVision: () => Promise<ResolvedVisionConfig>;
   /** 委托函数（宿主注入 ctx.llm.stream）。 */
   delegate: StreamDelegate;
   /** 读图字节（宿主注入 ctx.attachments.readImage）。 */
@@ -63,7 +63,7 @@ export interface PeriscopeBridgeOptions {
  */
 export class PeriscopeBridgeAdapter extends LlmAdapter {
   /** 解析视觉端点配置的函数面（settings/cordis/env 三来源，每次请求实时解析）。 */
-  private readonly resolveVision: () => ResolvedVisionConfig;
+  private readonly resolveVision: () => Promise<ResolvedVisionConfig>;
 
   private readonly delegate: StreamDelegate;
   private readonly readImage: ReadImage;
@@ -80,8 +80,9 @@ export class PeriscopeBridgeAdapter extends LlmAdapter {
     this.readImage = options.readImage;
     this.sink = options.sink;
     this.cache = options.cache ?? new Map<string, string>();
-    // 每次调用按最新 vision 构造 describeImage：settings/cordis/env 变更立即生效。
-    this.describeImage = (bytes, intent) => buildDescribeImage(this.resolveVision(), describe)(bytes, intent);
+    // 每次调用按最新 vision 构造 describeImage：settings/cordis/env 变更立即生效；apiKey 异步解析。
+    this.describeImage = async (bytes, intent) =>
+      buildDescribeImage(await this.resolveVision(), describe)(bytes, intent);
   }
 
   /** providerInfo：id 等于 route 键，name 供 Web UI 选择器分组展示。 */

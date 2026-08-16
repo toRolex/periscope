@@ -1,4 +1,4 @@
-import type { Context } from '@deepseek-ai/cordis';
+import type { Context, CredentialsService } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 import type { SettingsProvider } from '@deepseek-ai/dsh-settings';
 import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings';
@@ -22,7 +22,8 @@ import { makeConnectionProbe } from './connection-probe.js';
  *   settings 命名空间 `periscope`（user 层，settings.yaml / 卡片写入）
  *   > cordis.yml entry（base 层，插件配置段）> env fallback（PERISCOPE_VISION_*）。
  *   优先级内建于 installSettingsSection 分层 + vision-config 纯函数的逐字段合并；
- *   apiKey 仍仅从 apiKeyEnv 命名的环境变量读取（字面 key 不是配置值）。
+ *   apiKey 经 apiKeyEnv 命名的来源解析：dsh 凭据库（ctx.credentials）优先 > 进程环境变量兜底
+ *   （与 llm-deepseek 适配器同策略；字面 key 永远不是配置值）。
  *   另注册 connection RPC channel `/periscope`（describe 读当前存储值 / describeEffective 读归并生效值 /
  *   update 合并写，authority:loopback），供 browser half 配置卡片经 ctx.connection.rpc.call 读写与回显——
  *   host handler 服务直调 ctx.settings，绕开 api-proxy 的 exposedNamespaces() 白名单
@@ -95,8 +96,8 @@ import { makeConnectionProbe } from './connection-probe.js';
  *    `sessions.get(sessionId)` 取句柄、`session.append('image/described', data)` 落 log。该 API 形态是
  *    基于 #24 comment 的合理推断、未经源码核实——是本票手工 E2E 的第一核实地：若真实挂点/方法名不同，
  *    只需改 plugin.ts 的 appendToSession 一处（sink 的 try/catch 保证即使挂点错误也不中断会话）。
- * C. 【readImage 返回形态 · 推断】假定 `ctx.attachments.readImage(ref)` resolve 图片字节
- *    （Uint8Array/Buffer）；若真实返回更丰富的对象（如 { bytes, mediaType }），需在 plugin.ts 取 .bytes。
+ * C. 【readImage 返回形态 · 已核实】`ctx.attachments.readImage(ref)` 返回 StoredImageAttachment
+ *    { ref, data }（data 为字节），非裸 Uint8Array——plugin.ts 壳层取 .data 后注入 seam。
  * D. 【mimeType 未透传】桥接 seam 只把字节交给 describe，图片真实 mediaType 未随字节透传，describe
  *    默认按 image/png 构造 data URL；对非 PNG 源图，若下游端点挑剔需在后续切片把 mediaType 接入 seam。
  * E. 【settings/connection 服务可选】settings 与 connection 均为可选服务（ctx.inject 挂载，见 apply）：
@@ -107,8 +108,8 @@ import { makeConnectionProbe } from './connection-probe.js';
 /** 插件名（cordis 纤维诊断与 logger 命名）。 */
 export const name = 'periscope-deepseek';
 
-/** 依赖的 cordis 服务：llm（注册适配器 + 委托主文本模型都要它）。attachments/sessions 经 ctx 挂点取。 */
-export const inject = ['llm'];
+/** 依赖的 cordis 服务：llm（注册适配器 + 委托主文本模型都要它）；attachments（readImage 取图字节，经 inject 注入而非直接 ctx 访问）。sessions 经 ctx.get('sessions') 逃逸口取（推断挂点）。 */
+export const inject = ['llm', 'attachments'];
 
 /** settings 命名空间（#33）：user 层（settings.yaml / 卡片写入）> base 层（cordis.yml entry）> env fallback。 */
 export const NS = settingsNamespace('periscope');
@@ -141,13 +142,28 @@ export function apply(ctx: Context, config: Config): void {
   // （user 层 > base 层=cordis.yml entry）；settings 服务缺省时回落 cordis.yml entry。
   // resolveVision 每次调用实时解析三来源，故 settings/cordis/env 变更对下一次看图立即生效。
   let currentSettings = (): Config => config;
-  const resolveVision = (): ResolvedVisionConfig =>
-    resolveVisionConfigWithSettings(config, currentSettings(), process.env);
+  // apiKey 解析优先级：dsh 凭据库（ctx.credentials）> 进程环境变量（与 deepseek 适配器同策略）。
+  // 凭据服务可选（ctx.get 逃逸口，缺省回落 process.env）。使「卡片保存一次 + 凭据库存一次 key」
+  // 即可生效，无需在启动命令里 export key。
+  const resolveVision = async (): Promise<ResolvedVisionConfig> => {
+    const base = resolveVisionConfigWithSettings(config, currentSettings(), process.env);
+    if (base.apiKey !== '') return base;
+    const credentials = ctx.get('credentials') as CredentialsService | undefined;
+    if (credentials !== undefined) {
+      const hit = await credentials.resolve(base.apiKeyEnv);
+      if (hit !== undefined && hit.value.length > 0) return { ...base, apiKey: hit.value };
+    }
+    return base;
+  };
 
   const adapter = new PeriscopeBridgeAdapter({
     resolveVision,
     delegate: (options: GenerateOptions): AsyncIterable<StreamChunk> => ctx.llm.stream(options),
-    readImage: (attachment: unknown): Promise<Uint8Array> => ctx.attachments.readImage(attachment),
+    readImage: async (attachment: unknown): Promise<Uint8Array> => {
+      // dsh 源码核实：readImage 返回 StoredImageAttachment { ref, data }，seam 只需字节。
+      const stored = await ctx.attachments.readImage(attachment);
+      return stored.data;
+    },
     sink: makeImageDescribedSink({
       // 推断挂点（见上「已知限制 B」）：会话服务按 id 取句柄后 append log-only 事件。
       appendToSession: (sessionId, record): void => {
@@ -180,7 +196,7 @@ export function apply(ctx: Context, config: Config): void {
 }
 
 /** 注册 /periscope connection RPC channel：describe 读当前存储值 / describeEffective 读归并生效值 / update 合并写 user 层 / ping 连接探测。 */
-function registerPeriscopeRpc(ctx: Context, resolveVision: () => ResolvedVisionConfig): void {
+function registerPeriscopeRpc(ctx: Context, resolveVision: () => Promise<ResolvedVisionConfig>): void {
   ctx.inject(['connection'], (connectionCtx) => {
     const settings = (): SettingsProvider | undefined =>
       connectionCtx.get('settings') as SettingsProvider | undefined;

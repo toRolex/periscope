@@ -15,9 +15,11 @@ import { ResolvedVisionConfig } from './vision-config.js';
  * 不可达必带指向 baseUrl / apiKeyEnv / 网络的可操作提示。任何失败都不抛错。
  */
 
-/** 探测请求用的最小图片（1x1 透明 PNG）：只验证端点可达与请求形状，不消耗真实图片。 */
+/** 探测请求用的最小图片（1x1 不透明纯色 PNG）：只验证端点可达与请求形状，不消耗真实图片。
+ * 刻意不透明：MiniMax 等上游的内容安全会把透明空白图误判为 sensitive 拒掉（实测 1x1 透明 → HTTP 500，
+ * 不透明 → HTTP 200），故探针图不用透明 PNG。 */
 const PROBE_IMAGE_DATA_URL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOQS7kDAAICAV9Hfkh8';
 
 /** 探测用极简 prompt（尽量轻，端点只需返回任意 2xx 即判定可达）。 */
 const PROBE_INTENT = 'ping';
@@ -34,8 +36,8 @@ export interface ConnectionProbeResult {
 
 /** 探测所需的最小注入面：当前生效配置解析函数 + 可注入 transport（默认全局 fetch）。 */
 export interface ConnectionProbeOptions {
-  /** 解析当前生效配置（settings > cordis.yml > env 三来源归并），每次调用实时解析。 */
-  resolve: () => ResolvedVisionConfig;
+  /** 解析当前生效配置（settings > cordis.yml > env 三来源归并），每次调用实时解析；允许同步或 async（apiKey 可能经凭据库）。 */
+  resolve: () => ResolvedVisionConfig | Promise<ResolvedVisionConfig>;
   /** 注入 HTTP 传输（默认全局 fetch）；测试时指向本地 mock 端点。 */
   transport?: HttpTransport;
 }
@@ -48,7 +50,7 @@ export interface ConnectionProbeOptions {
 export function makeConnectionProbe(options: ConnectionProbeOptions): () => Promise<ConnectionProbeResult> {
   const transport = options.transport ?? defaultTransport;
   return async (): Promise<ConnectionProbeResult> => {
-    const config = options.resolve();
+    const config = await options.resolve();
     if (config.baseUrl.trim() === '' || config.model.trim() === '') {
       return {
         ok: false,
