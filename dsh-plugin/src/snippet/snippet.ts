@@ -1,4 +1,4 @@
-import { Protocol } from '../protocols/types.js';
+import { Protocol } from 'periscope-engine';
 
 /**
  * periscope-dsh 的 cordis.yml 配置片段生成器（issue #30）。

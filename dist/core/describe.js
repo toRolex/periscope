@@ -39,9 +39,7 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const cache_1 = require("../cache");
 const config_1 = require("../config/config");
-const protocols_1 = require("../protocols");
-const transport_1 = require("../transport");
-const templates_1 = require("./templates");
+const periscope_engine_1 = require("periscope-engine");
 /** 远程图片 URL（http/https）判定；此类图片不落本地缓存、请求体直接透传 URL。 */
 const REMOTE_URL_RE = /^https?:\/\//i;
 /**
@@ -85,13 +83,13 @@ function truncate(text, max = 200) {
  */
 async function describe(input, opts = {}) {
     const config = opts.config ?? (0, config_1.loadConfig)({ configPath: opts.configPath });
-    const adapter = (0, protocols_1.getProtocol)(config.protocol);
-    const transport = opts.transport ?? transport_1.defaultTransport;
+    const adapter = (0, periscope_engine_1.getProtocol)(config.protocol);
+    const transport = opts.transport ?? periscope_engine_1.defaultTransport;
     const cacheDir = opts.cacheDir === undefined ? (0, cache_1.defaultCacheDir)() : opts.cacheDir;
     // 先校验端点：空白模板（未配置 baseUrl/model）应尽早给出可操作报错，而不是等到读图/查缓存之后。
     const { baseUrl, model } = endpointFor(config);
     // 任务模板解析：命中模板名（ocr/table/chart）替换为模板 prompt，自定义文本原样透传，缺省保持默认描述。
-    const intent = (0, templates_1.resolveIntent)(input.intent);
+    const intent = (0, periscope_engine_1.resolveIntent)(input.intent);
     let cache = null;
     // 远程 URL 不落本地缓存：缓存 key 依赖本地文件 stat，且远程内容可变。
     if (cacheDir !== null && !REMOTE_URL_RE.test(input.imagePath)) {

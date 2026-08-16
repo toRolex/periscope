@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      periscope-engine:
+        specifier: file:./engine
+        version: file:engine
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -14,11 +18,17 @@ importers:
 
 packages:
 
+  periscope-engine@file:engine:
+    resolution: {directory: engine, type: directory}
+    engines: {node: '>=22.0.0'}
+
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
 snapshots:
+
+  periscope-engine@file:engine: {}
 
   typescript@5.9.3: {}

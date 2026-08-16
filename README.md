@@ -202,7 +202,7 @@ dsh 侧配置走 dsh Config（cordis.yml + env fallback），apiKey 仅从环境
 
 - devDependencies 仅 `typescript`；`pnpm build` 构建、`pnpm test` 测试（`tsc && node --test 'dist/**/*.test.js'`）。
 - 离线 mock 视觉端点 `src/testing/mock-server.ts` 供自动化冒烟；`dsh-plugin/` 与主仓同构。
-- 两侧 describe 引擎各保留一份副本、函数签名刻意一致，接口稳定后抽独立 npm 包（届时是纯移动非重构）。
+- describe 引擎叶子（协议适配器 / 任务模板 / HTTP 传输）已收敛到 `engine/` 共享包（见 ADR 0004）；describe / config 双宿主各保留副本，由 `contract/` 契约测试锁定签名一致。
 - 更多项目背景与术语见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [docs/adr](./docs/adr)。
 
 报 bug / 提需求 / 交流走 [GitHub Issues](https://github.com/toRolex/periscope/issues)。

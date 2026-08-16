@@ -6,7 +6,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, makeTestEnv, readyEndpoint, writeConfigFile, writeFixtureImage, PLUGIN_SCHEMA_1_0_0 } from '../testing/fixtures';
-import { TASK_TEMPLATES } from '../core/templates';
+import { TASK_TEMPLATES } from 'periscope-engine';
 
 const execFileP = promisify(execFile);
 /** 编译后测试位于 dist/cli/，三个独立脚本入口即同目录的 describe.js / doctor.js / init.js（命令分发器 index.js 已删除）。 */

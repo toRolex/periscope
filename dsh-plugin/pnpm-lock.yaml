@@ -20,6 +20,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      periscope-engine:
+        specifier: file:../engine
+        version: file:../engine
     devDependencies:
       '@types/react':
         specifier: ^18.2.0
@@ -124,6 +127,10 @@ packages:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
 
+  periscope-engine@file:../engine:
+    resolution: {directory: ../engine, type: directory}
+    engines: {node: '>=22.0.0'}
+
   react-is@18.2.0:
     resolution: {integrity: sha512-xWGDIW6x921xtzPkhiULtthJHoJvBbF3q26fzloPCK0hsvxtPVelvftw3zjbHWSkR2km9Z+4uxbDDK/6Zw9B8w==}
 
@@ -222,6 +229,8 @@ snapshots:
       js-tokens: 3.0.0
 
   object-assign@4.1.1: {}
+
+  periscope-engine@file:../engine: {}
 
   react-is@18.2.0: {}
 

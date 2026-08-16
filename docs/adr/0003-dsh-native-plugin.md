@@ -16,7 +16,7 @@ deepseek-harness（dsh）为 DeepSeek 官方 Cordis 插件式 agent harness（"�
 3. **配置：dsh Config**（cordis.yml + schemastery + env fallback），apiKey 走 env；现有 init wizard 降级为生成 cordis.yml 片段的便利脚本。
 4. **入口：只自动处理 ImageBlock**（Web 粘贴/拖拽），不加 `describe_image` 工具——维持 ADR 0001"不进工具列表"原则。
 5. **log 不变量：新增 log-only session event `image/described`**（attachmentId → 描述），翻译时 append；BYOM 失败降级为 `[Image N] 描述不可用` 占位符（同样落 log），绝不抛错中断会话。满足 model-visible ⟺ logged（`SessionEventMap` merge-extensible，第三方插件可经 declaration merging 扩展，已源码验证）。
-6. **引擎共享：双宿主拷贝 + 签名一致**。Claude Code 版与 dsh 版各自保留 describe 引擎副本，但刻意保持函数签名一致，接口稳定后抽独立 npm 包（届时是纯移动非重构）。dsh 桥接接口一天一变，此刻抽包是流沙上打地基。
+6. **引擎共享：双宿主拷贝 + 签名一致**。Claude Code 版与 dsh 版各自保留 describe 引擎副本，但刻意保持函数签名一致，接口稳定后抽独立 npm 包（届时是纯移动非重构）。dsh 桥接接口一天一变，此刻抽包是流沙上打地基。执行方式见 ADR 0004（engine/ 共享包：叶子先抽，describe/config 留副本 + 契约测试）。
 7. **双宿主并存**：Claude Code hook/skill/独立脚本不动，dsh 插件是平行渠道。
 
 ## 备选方案

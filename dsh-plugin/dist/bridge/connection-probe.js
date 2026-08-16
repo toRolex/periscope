@@ -1,5 +1,4 @@
-import { defaultTransport } from '../transport.js';
-import { getProtocol } from '../protocols/index.js';
+import { defaultTransport, getProtocol } from 'periscope-engine';
 /**
  * 连接探测纯逻辑（issue #36，Seam 3 端到端切片一：server 侧探测）。
  *

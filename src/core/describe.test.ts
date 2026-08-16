@@ -2,8 +2,7 @@ import { before, after, test } from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { describe, describeMany } from './describe';
-import { TASK_TEMPLATES } from './templates';
-import { HttpTransport } from '../transport';
+import { TASK_TEMPLATES, HttpTransport } from 'periscope-engine';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, readyEndpoint, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 

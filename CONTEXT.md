@@ -32,8 +32,11 @@ lazy create = config 模块的兜底行为：首次启动无 config 文件 → �
 
 任务模板 = 内置命名 prompt 文案（如 ocr / table / chart），通过 describe 的 intent 传入模板名时替换默认描述文案。periscope 不声明、不探测模型能力（运行时协商：prompt + 输出容错解析），模型不行由用户自行更换。
 
-双宿主 = periscope 同时以 Claude Code（hook + skill + 独立脚本）与 dsh（LlmAdapter 桥）两种接入层提供同一 describe 能力；两宿主并存演进，describe 引擎保持函数签名一致，接口稳定后抽独立包。
+双宿主 = periscope 同时以 Claude Code（hook + skill + 独立脚本）与 dsh（LlmAdapter 桥）两种接入层提供同一 describe 能力；两宿主并存演进，经共享 describe 引擎包复用同一引擎实现（见「describe 引擎」）。
 _Avoid_: 双平台、跨端
+
+describe 引擎 = 双宿主共用的图片→文字描述核心：三协议适配器（openai/anthropic/responses）+ 任务模板 + HTTP 传输，以同一实现供给两端接入层（Claude Code hook / dsh 桥）。describe 是它的入口。
+_Avoid_: 视觉服务、翻译核心（翻译是桥的职责）
 
 dsh（deepseek-harness）= DeepSeek 官方的 Cordis 插件式 agent harness，periscope 的第二宿主。图片以 durable attachment + ImageBlock 进入会话，DeepSeek 文本路由本身不接收图片，需经「桥」翻译。
 _Avoid_: harness（该词已指代 Agent Plugins 兼容客户端，见上）

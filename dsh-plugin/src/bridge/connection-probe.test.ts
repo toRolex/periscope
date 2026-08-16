@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert';
 import { makeConnectionProbe } from './connection-probe.js';
 import { createMockServer } from '../testing/mock-server.js';
-import { HttpTransport } from '../transport.js';
+import { HttpTransport } from 'periscope-engine';
 import { ResolvedVisionConfig } from './vision-config.js';
 
 /**

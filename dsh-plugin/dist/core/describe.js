@@ -1,7 +1,5 @@
 import { endpointMissingError, loadConfig } from '../config/config.js';
-import { getProtocol } from '../protocols/index.js';
-import { defaultTransport } from '../transport.js';
-import { resolveIntent } from './templates.js';
+import { getProtocol, defaultTransport, resolveIntent } from 'periscope-engine';
 function endpointFor(config) {
     const error = endpointMissingError(config.protocol, config[config.protocol]);
     if (error !== null)

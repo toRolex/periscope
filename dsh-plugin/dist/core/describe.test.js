@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
 import { describe, describeMany } from './describe.js';
-import { TASK_TEMPLATES } from './templates.js';
+import { TASK_TEMPLATES } from 'periscope-engine';
 import { createMockServer } from '../testing/mock-server.js';
 import { makeTempDir, PNG_1PX_BASE64, readyEndpoint, writeConfigFile, } from '../testing/fixtures.js';
 /**

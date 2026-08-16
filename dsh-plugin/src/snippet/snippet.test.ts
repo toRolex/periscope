@@ -17,7 +17,7 @@ import { parseSnippetArgs, runSnippet } from './cli.js';
 
 /** ESM 下 __dirname 等价物（经 import.meta.url 派生）。 */
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-import { Protocol } from '../protocols/types.js';
+import { Protocol } from 'periscope-engine';
 
 /**
  * issue #30：dsh 侧便利脚本降级为 cordis.yml 片段生成器。

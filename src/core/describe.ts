@@ -2,9 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { defaultCacheDir, imageCacheKey, readCacheEntry, writeCacheEntry } from '../cache';
 import { endpointMissingError, loadConfig, PeriscopeConfig } from '../config/config';
-import { getProtocol } from '../protocols';
-import { defaultTransport, HttpTransport } from '../transport';
-import { resolveIntent } from './templates';
+import { getProtocol, defaultTransport, HttpTransport, resolveIntent } from 'periscope-engine';
 
 export interface DescribeInput {
   /** 图片源：本地路径或 http(s) URL。 */

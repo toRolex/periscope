@@ -25,7 +25,7 @@
  * （PeriscopeRpcError）的 leading comment 而丢失（review-36 实测 dist 回归，plugin-load.test.ts 锁定）。
  */
 
-import { Protocol } from '../protocols/types.js';
+import { Protocol } from 'periscope-engine';
 import { visionEndpointReady } from './stream-core.js';
 import {
   VISION_ENV,

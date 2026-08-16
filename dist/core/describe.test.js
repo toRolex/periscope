@@ -37,7 +37,7 @@ const node_test_1 = require("node:test");
 const assert = __importStar(require("node:assert"));
 const path = __importStar(require("node:path"));
 const describe_1 = require("./describe");
-const templates_1 = require("./templates");
+const periscope_engine_1 = require("periscope-engine");
 const mock_server_1 = require("../testing/mock-server");
 const fixtures_1 = require("../testing/fixtures");
 // describe 默认开启本地缓存，把 PERISCOPE_CACHE_DIR 指向临时目录，
@@ -141,7 +141,7 @@ const fixtures_1 = require("../testing/fixtures");
     }).config;
     await (0, describe_1.describe)({ imagePath, intent: 'ocr' }, { config });
     const body = server.requests[0].jsonBody;
-    assert.equal(body.messages[0].content[0].text, templates_1.TASK_TEMPLATES.ocr);
+    assert.equal(body.messages[0].content[0].text, periscope_engine_1.TASK_TEMPLATES.ocr);
 });
 (0, node_test_1.test)('describe --intent table 请求体使用 table 模板 prompt', async (t) => {
     const server = await (0, mock_server_1.createMockServer)();
@@ -153,7 +153,7 @@ const fixtures_1 = require("../testing/fixtures");
     }).config;
     await (0, describe_1.describe)({ imagePath, intent: 'table' }, { config });
     const body = server.requests[0].jsonBody;
-    assert.equal(body.messages[0].content[0].text, templates_1.TASK_TEMPLATES.table);
+    assert.equal(body.messages[0].content[0].text, periscope_engine_1.TASK_TEMPLATES.table);
 });
 (0, node_test_1.test)('describe --intent chart 请求体使用 chart 模板 prompt', async (t) => {
     const server = await (0, mock_server_1.createMockServer)();
@@ -165,7 +165,7 @@ const fixtures_1 = require("../testing/fixtures");
     }).config;
     await (0, describe_1.describe)({ imagePath, intent: 'chart' }, { config });
     const body = server.requests[0].jsonBody;
-    assert.equal(body.messages[0].content[0].text, templates_1.TASK_TEMPLATES.chart);
+    assert.equal(body.messages[0].content[0].text, periscope_engine_1.TASK_TEMPLATES.chart);
 });
 (0, node_test_1.test)('describe 自定义 intent 原样透传：模板名保留字之外的文本不被模板化', async (t) => {
     const server = await (0, mock_server_1.createMockServer)();
@@ -178,7 +178,7 @@ const fixtures_1 = require("../testing/fixtures");
     await (0, describe_1.describe)({ imagePath, intent: '把图片中的表格整理成要点' }, { config });
     const body = server.requests[0].jsonBody;
     assert.equal(body.messages[0].content[0].text, '把图片中的表格整理成要点');
-    assert.notEqual(body.messages[0].content[0].text, templates_1.TASK_TEMPLATES.table);
+    assert.notEqual(body.messages[0].content[0].text, periscope_engine_1.TASK_TEMPLATES.table);
 });
 (0, node_test_1.test)('describe --intent ocr 在 anthropic 协议请求体使用 OCR 模板 prompt', async (t) => {
     const server = await (0, mock_server_1.createMockServer)();
@@ -191,7 +191,7 @@ const fixtures_1 = require("../testing/fixtures");
     }).config;
     await (0, describe_1.describe)({ imagePath, intent: 'ocr' }, { config });
     const body = server.requests[0].jsonBody;
-    assert.equal(body.messages[0].content[0].text, templates_1.TASK_TEMPLATES.ocr);
+    assert.equal(body.messages[0].content[0].text, periscope_engine_1.TASK_TEMPLATES.ocr);
 });
 (0, node_test_1.test)('describe --intent table 在 responses 协议请求体使用 table 模板 prompt', async (t) => {
     const server = await (0, mock_server_1.createMockServer)();
@@ -204,7 +204,7 @@ const fixtures_1 = require("../testing/fixtures");
     }).config;
     await (0, describe_1.describe)({ imagePath, intent: 'table' }, { config });
     const body = server.requests[0].jsonBody;
-    assert.equal(body.input[0].content[0].text, templates_1.TASK_TEMPLATES.table);
+    assert.equal(body.input[0].content[0].text, periscope_engine_1.TASK_TEMPLATES.table);
 });
 (0, node_test_1.test)('describe 端点返回非 2xx 时抛错', async (t) => {
     const server = await (0, mock_server_1.createMockServer)({

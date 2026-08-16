@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { Readable, Writable } from 'node:stream';
 import { configPathForEnv, DEFAULT_CONFIG, PeriscopeConfig } from '../config/config';
-import { Protocol } from '../protocols/types';
+import { Protocol } from 'periscope-engine';
 import { errorMessage } from './shared';
 
 export interface RunInitOptions {

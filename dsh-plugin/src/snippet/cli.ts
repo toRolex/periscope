@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import type { Writable } from 'node:stream';
-import { Protocol } from '../protocols/types.js';
+import { Protocol } from 'periscope-engine';
 import {
   DEFAULT_API_KEY_ENV,
   DEFAULT_BASE_URL_PLACEHOLDER,

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { buildImageContext, describeImageEntries, handleHookInput } from './index';
-import { HttpTransport } from '../transport';
+import { HttpTransport } from 'periscope-engine';
 import { createMockServer } from '../testing/mock-server';
 import { makeTempDir, makeTestEnv, readyEndpoint, writeConfigFile, writeFixtureImage } from '../testing/fixtures';
 import { runHook } from '../testing/hook';

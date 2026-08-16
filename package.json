@@ -8,10 +8,14 @@
   "main": "dist/core/describe.js",
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node --test 'dist/**/*.test.js'"
+    "test": "tsc && node --test 'dist/**/*.test.js'",
+    "build:all": "cd engine && pnpm build && cd .. && pnpm build && cd dsh-plugin && pnpm build"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "periscope-engine": "file:./engine"
   },
   "engines": {
     "node": ">=22.0.0"

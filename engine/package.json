@@ -1,0 +1,36 @@
+{
+  "name": "periscope-engine",
+  "version": "0.1.0",
+  "description": "periscope 双宿主共享的 describe 引擎叶子：协议适配器 + 任务模板 + HTTP 传输。无状态，不得引入单例/模块级缓存（dual-package 实例分裂防护）。",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && node -e \"const fs=require('node:fs');fs.mkdirSync('dist/cjs',{recursive:true});fs.mkdirSync('dist/esm',{recursive:true});fs.writeFileSync('dist/cjs/package.json',JSON.stringify({type:'commonjs'}));fs.writeFileSync('dist/esm/package.json',JSON.stringify({type:'module'}));\"",
+    "test": "tsc -p tsconfig.cjs.json && node --test 'dist/cjs/**/*.test.js'"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

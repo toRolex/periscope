@@ -1,5 +1,4 @@
-import { defaultTransport, HttpTransport } from '../transport.js';
-import { getProtocol } from '../protocols/index.js';
+import { defaultTransport, HttpTransport, getProtocol } from 'periscope-engine';
 import { ResolvedVisionConfig } from './vision-config.js';
 
 /**
